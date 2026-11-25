@@ -65,6 +65,20 @@ input,select{width:100%;border:1px solid var(--line);background:var(--surface);p
 .toast{position:fixed;left:50%;bottom:104px;transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 20px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:40;max-width:calc(100vw - 32px)}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 .load{text-align:center;color:var(--muted);padding:40px 0}
+@keyframes up{from{opacity:0;translate:0 20px}}
+@keyframes pop{from{opacity:0;scale:.95;translate:0 14px}}
+@keyframes sway{50%{rotate:5deg}}
+.logo svg{transform-origin:50% 90%;animation:sway 6s ease-in-out infinite}
+.view:not([hidden]){animation:up .4s both}
+.impact{animation:pop .7s .1s cubic-bezier(.2,.8,.2,1) both}
+.card{animation:up .45s both;transition:transform .2s,box-shadow .2s}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(31,61,43,.12)}
+.list .card:nth-child(2){animation-delay:.06s}.list .card:nth-child(3){animation-delay:.12s}.list .card:nth-child(4){animation-delay:.18s}.list .card:nth-child(n+5){animation-delay:.24s}
+.quick button{transition:transform .15s}.quick button:active{transform:scale(.92)}
+.btn,.chip,.del{transition:transform .15s,background .2s,color .2s}.btn:active,.chip:active,.del:active{transform:scale(.96)}
+.tabbar button{transition:background .2s,color .2s,transform .15s}.tabbar button:active{transform:scale(.9)}
+.tabbar .plus{transition:transform .2s}.tabbar .plus:hover{transform:rotate(90deg)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
@@ -142,7 +156,7 @@ var $=function(s){return document.querySelector(s)},$$=function(s){return Array.
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
 var rp=function(n){return n>0?"Rp "+Number(n).toLocaleString("id-ID"):"Gratis"};
 var COL={Organik:"#2e7d4f",Tekstil:"#e0a800",Kemasan:"#e8826a",Kayu:"#a9794b",Botol:"#5b9bd5"};
-var sb=null,uid=null,L=[],flt={c:"Semua",k:"Semua",q:""},view="home";
+var sb=null,uid=null,L=[],flt={c:"Semua",k:"Semua",q:""},view="home",totalKg=0;
 
 function toast(t){var e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.i);toast.i=setTimeout(function(){e.classList.remove("on")},3000)}
 function fail(m){$("#load").hidden=true;$("#errt").textContent=m;$("#err").hidden=false}
@@ -153,6 +167,11 @@ return'<article class="card"><div class="ph" style="--c:'+(COL[d.category]||"#2e
 }
 function empty(t){return'<div class="empty">'+esc(t)+"</div>"}
 
+function tween(el,to,suf){
+var f=function(n){return n.toLocaleString("id-ID",{maximumFractionDigits:1})+suf};
+if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){el.textContent=f(to);return}
+var t0=null;requestAnimationFrame(function s(t){if(t0===null)t0=t;var p=Math.min((t-t0)/900,1);el.textContent=f(to*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(s)});
+}
 function go(v){
 view=v;
 ["home","explore","sell","me"].forEach(function(x){$("#v-"+x).hidden=x!==v});
@@ -160,12 +179,13 @@ $$(".tabbar button").forEach(function(b){if(b.dataset.go===v)b.setAttribute("ari
 try{history.replaceState(null,"","#"+v)}catch(e){}
 window.scrollTo(0,0);
 if(v==="explore")renderExplore();
+if(v==="home")tween($("#kg"),totalKg," kg");
 }
 
 function renderHome(){
 var kg=L.reduce(function(a,x){return a+Number(x.qty_kg||0)},0),u={};
 L.forEach(function(x){u[x.owner]=1});
-$("#kg").textContent=kg.toLocaleString("id-ID",{maximumFractionDigits:1})+" kg";
+totalKg=kg;$("#kg").textContent=kg.toLocaleString("id-ID",{maximumFractionDigits:1})+" kg";
 $("#nl").textContent=L.length+" listing";$("#nu").textContent=Object.keys(u).length+" UMKM";
 $("#latest").innerHTML=L.length?L.slice(0,4).map(function(d){return card(d,false)}).join(""):empty("Belum ada listing. Jadilah yang pertama memasang sisa.");
 }
