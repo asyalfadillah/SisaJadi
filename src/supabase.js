@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
 // URL dan anon key bersifat publik. Keamanan data dijaga oleh Row Level Security.
-const url = import.meta.env.VITE_SUPABASE_URL || 'https://ahxxajcevfkcxlgpnlye.supabase.co'
+const url = import.meta.env.VITE_SUPABASE_URL || 'https://hwssghhtynvfhyxywwtt.supabase.co'
 const key =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoeHhhamNldmZrY3hsZ3BubHllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyMTY2MTEsImV4cCI6MjEwMDc5MjYxMX0.V04MXkIhBss8N9ALCuPWiDhzWsOpdbNR2qyRwpkvpNM'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3c3NnaGh0eW52Zmh5eHl3d3R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU3Nzk2NDUsImV4cCI6MjExMTM1NTY0NX0.ZTyCfqp2ITsr5I_m_STX1YuIfwJM50HzfqIPceuR3QY'
 
 export const supabase = createClient(url, key, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
