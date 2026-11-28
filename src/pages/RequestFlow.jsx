@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { CheckCircle2, MessageCircle } from 'lucide-react'
-import { supabase, rupiah, rpc, toast } from '../supabase'
+import { supabase, rupiah, rpc, toast, dist } from '../supabase'
+import { useGeo } from '../geo'
 import { useAuth } from '../auth'
 import Topbar from '../components/Topbar'
 import { Seg, Spinner, SuccessCard } from '../components/ui'
@@ -62,24 +63,36 @@ export function KonfirmasiRequest() {
   const nav = useNavigate()
   const { user, profile } = useAuth()
   const l = useListing(id)
+  const { pos, ask, err } = useGeo(false)
   const [method, setMethod] = useState('Ambil sendiri')
   const [address, setAddress] = useState(profile?.address || '')
+  const [cfg, setCfg] = useState({ courier_base: 8000, courier_per_km: 2500, fee_pct: 5 })
   const [ok, setOk] = useState(false)
   const [busy, setBusy] = useState(false)
+  useEffect(() => { supabase.from('sj_settings').select('*').then(({ data }) => data && setCfg(Object.fromEntries(data.map((x) => [x.key, Number(x.value)])))) }, [])
   if (!state) return <Navigate to={'/app/sisa/' + id + '/request'} replace />
   if (l === undefined) return <Spinner />
   if (!l) return <Navigate to="/app/jelajahi" replace />
   const total = totalOf(l, state.qty, state.type)
+  const kurir = method === 'Kurir'
+  const km = kurir && pos ? dist(pos, { lat: l.lat, lng: l.lng }) : null
+  const kmUsed = Math.min(100, km == null ? 10 : km)
+  const courier = kurir ? cfg.courier_base + cfg.courier_per_km * Math.ceil(kmUsed) : 0
+  const fee = Math.round((total * cfg.fee_pct) / 100)
+  const grand = total + courier
+  const needAddr = kurir && !address.trim()
   const send = async () => {
     setBusy(true)
     const { data, error } = await supabase.from('sj_requests').insert({
       listing_id: l.id, requester_id: user.id, message: state.note || null, qty: state.qty, req_type: state.type,
-      method, address: address || null, total, offer_item: state.offer_item || null, offer_qty: state.offer_qty || null,
+      method, address: kurir ? address.trim() : (l.address || null), total, offer_item: state.offer_item || null, offer_qty: state.offer_qty || null,
+      dest_lat: kurir && pos ? pos.lat : null, dest_lng: kurir && pos ? pos.lng : null,
     }).select('id').single()
     setBusy(false)
     if (error) return toast('Gagal mengirim: ' + error.message)
     nav('/app/request-berhasil/' + data.id, { replace: true })
   }
+  const money = (n) => (n > 0 ? rupiah(n) : 'Rp 0')
   return (
     <>
       <Topbar title="Konfirmasi Request" />
@@ -89,14 +102,29 @@ export function KonfirmasiRequest() {
           <div><b>{l.title}</b><div className="muted" style={{ fontSize: 13 }}>{l.owner_name}</div></div>
         </div>
         <div className="kv"><span className="muted">Item</span><b>{state.qty} {l.unit} · {state.type}</b></div>
-        {state.type === 'Jual' && <div className="kv"><span className="muted">Total</span><b>{rupiah(total)}</b></div>}
         {state.offer_item && <div className="kv"><span className="muted">Kamu tawarkan</span><b>{state.offer_item} ({state.offer_qty})</b></div>}
         <div className="field" style={{ marginTop: 14 }}><label>Metode Pengambilan</label>
           <Seg value={method} onChange={setMethod} options={['Ambil sendiri', 'Kurir']} style={{ margin: 0 }} /></div>
-        <div className="field"><label>Lokasi / alamat pengambilan</label>
-          <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={method === 'Kurir' ? 'Alamat penjemputan' : 'Lokasi bertemu'} /></div>
+        <div className="kv"><span className="muted">Lokasi pengambilan (penjual)</span><b style={{ textAlign: 'right' }}>{l.address || l.city || 'Hubungi penjual'}</b></div>
+        {kurir ? (
+          <div className="field" style={{ marginTop: 10 }}><label>Alamat tujuan pengiriman</label>
+            <textarea className="input" rows={2} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Alamat lengkap yang dituju kurir" />
+            <button type="button" className="btn sm sec" style={{ marginTop: 8 }} onClick={ask}>{pos ? 'Perbarui lokasiku' : 'Gunakan lokasiku untuk hitung ongkir'}</button>
+            {err && <div className="err" style={{ marginTop: 8 }}>{err}</div>}
+          </div>
+        ) : <div className="muted" style={{ fontSize: 13, margin: '8px 0' }}>Kamu mengambil sendiri ke lokasi penjual. Tidak ada ongkir.</div>}
+
+        <div className="card" style={{ padding: 16, background: 'var(--mint)', boxShadow: 'none', margin: '14px 0' }}>
+          <b>Rincian Biaya {kurir ? '(estimasi)' : ''}</b>
+          <div className="kv" style={{ borderTop: 0 }}><span>Harga barang</span><b>{state.type === 'Jual' ? money(total) : state.type}</b></div>
+          {kurir && <div className="kv"><span>Biaya kurir ({km == null ? '≈10 km, lokasi belum diketahui' : kmUsed.toFixed(1).replace('.', ',') + ' km'})</span><b>{money(courier)}</b></div>}
+          <div className="kv"><span>Biaya layanan platform ({cfg.fee_pct}%)</span><b>{money(fee)}</b></div>
+          <div className="muted" style={{ fontSize: 12 }}>Biaya layanan dipotong dari pendapatan penyedia, tidak menambah tagihanmu.</div>
+          <div className="kv"><b>Total yang kamu bayar</b><b style={{ color: 'var(--green)', fontSize: 18 }}>{money(grand)}</b></div>
+          <div className="muted" style={{ fontSize: 12 }}>Dibayar setelah penjual menerima request. Nilai final dihitung ulang server saat pembayaran.</div>
+        </div>
         <label className="check" style={{ marginBottom: 18 }}><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />Saya menyetujui ringkasan di atas</label>
-        <button className="btn block" disabled={!ok || busy} onClick={send}>{busy ? 'Mengirim…' : 'Konfirmasi'}</button>
+        <button className="btn block" disabled={!ok || busy || needAddr} onClick={send}>{busy ? 'Mengirim…' : needAddr ? 'Isi alamat tujuan' : 'Konfirmasi'}</button>
       </div>
     </>
   )

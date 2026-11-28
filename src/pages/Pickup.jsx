@@ -32,7 +32,7 @@ export function JadwalPickup() {
         <div className="rowflex" style={{ flexWrap: 'wrap', margin: '10px 0 18px' }}>
           {SLOTS.map((s) => <button key={s} className={'sel-chip' + (slot === s ? ' on' : '')} onClick={() => setSlot(s)}>{s}</button>)}
         </div>
-        <div className="field"><label>Alamat pickup</label><textarea className="input" rows={3} value={addr} onChange={(e) => setAddr(e.target.value)} /></div>
+        <div className="field"><label>Alamat tujuan pengiriman</label><textarea className="input" rows={3} value={addr} onChange={(e) => setAddr(e.target.value)} /></div>
         <button className="btn block" disabled={!addr.trim()} onClick={() => nav('/app/pickup/konfirmasi/' + requestId, { state: { date, slot, addr } })}>Lanjut</button>
       </div>
     </>
