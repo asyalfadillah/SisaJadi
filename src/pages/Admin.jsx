@@ -42,7 +42,7 @@ export default function Admin() {
     ]).then(([a, b, c, e]) => setDetail({ listings: a.data || [], requests: b.data || [], log: c.data || [], red: e.data || [] }))
   }, [sel])
 
-  if (loading) return null
+  if (loading || (user && !profile)) return null
   if (!isAdmin) return <Navigate to="/app" replace />
   const flash = (t) => { setMsg(t); setTimeout(() => setMsg(''), 3000) }
   const setRole = async (u, role) => {
@@ -63,7 +63,7 @@ export default function Admin() {
       <Topbar title="Admin" sub={'Masuk sebagai ' + (profile?.email || user.email)} back={false} />
       <div className="grid g4" style={{ marginBottom: 18 }}>{stats.map(([t, n]) => <div key={t} className="card stat"><b>{n}</b><span>{t}</span></div>)}</div>
       {msg && <div className="ok">{msg}</div>}
-      <div className="tabs" style={{ maxWidth: 960 }}>
+      <div className="tabs admin-tabs">
         {[['akun', 'Akun'], ['listing', 'Sisa'], ['request', 'Request'], ['reward', 'Reward'], ['pickup', 'Pickup'], ['bantuan', 'Bantuan'], ['pembayaran', 'Pembayaran'], ['tarif', 'Tarif & Fee'], ['konten', 'Konten'], ['siaran', 'Siaran']].map(([k, t]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 

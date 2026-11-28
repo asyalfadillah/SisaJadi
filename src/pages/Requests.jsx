@@ -50,7 +50,7 @@ export default function Requests() {
               <div style={{ fontSize: 14 }}>{r.message || '(tanpa pesan)'}</div>
               <div className="muted" style={{ fontSize: 12 }}>{timeAgo(r.created_at)}</div>
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="actions">
               <span className="tag">{r.status}</span>
               {tab === 'keluar' && r.status === 'diterima' && (pay[r.id] ? <Link className="btn sm" to={'/app/pembayaran/' + pay[r.id].id}>Lihat Pembayaran</Link> : <Link className="btn sm" to={'/app/bayar/' + r.id}>Bayar</Link>)}
               {tab === 'masuk' && pay[r.id] && <span className="tag">Dibayar</span>}

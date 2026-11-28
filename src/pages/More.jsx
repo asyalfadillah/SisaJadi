@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, Navigate } from 'react-router-dom'
-import { Lightbulb, Search, ChevronRight, Phone, Mail, MessageCircle, ThumbsUp, ThumbsDown, Building2, Bell, Languages, Palette, HelpCircle, Shield, Info, LogOut, Heart, Package, Award } from 'lucide-react'
+import { CreditCard, Wallet, Map as MapIcon, Target, Users, Leaf, Medal, Lightbulb, Search, ChevronRight, Phone, Mail, MessageCircle, ThumbsUp, ThumbsDown, Building2, Bell, Languages, Palette, HelpCircle, Shield, Info, LogOut, Heart, Package, Award } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { supabase, toast, num } from '../supabase'
 import { useAuth } from '../auth'
@@ -136,7 +136,9 @@ export function Profile() {
   const mode = useMode()
   const name = profile?.business_name || profile?.full_name || user.email
   const menu = [
-    [Building2, 'Edit Profil Usaha', '/app/profil/edit'], [Package, 'Sisa Saya', '/app/permintaan'], [Heart, 'Favorit', '/app/favorit'], [Award, 'Voucher & Lencana', '/app/voucher'],
+    [Building2, 'Edit Profil Usaha', '/app/profil/edit'], [Package, 'Sisa Saya', '/app/permintaan?tab=listing'], [Heart, 'Favorit', '/app/favorit'], [MessageCircle, 'Pesan & Notifikasi', '/app/chat'],
+    [CreditCard, 'Pembayaran', '/app/pembayaran'], [Wallet, 'Dompet Penyedia', '/app/dompet'], [MapIcon, 'Peta Sisa', '/app/peta'], [Target, 'Misi', '/app/misi'], [Users, 'Komunitas', '/app/komunitas'],
+    [Award, 'Eco Point & Reward', '/app/eco-point'], [Leaf, 'Dampak', '/app/dampak'], [Lightbulb, 'Ide Sisa', '/app/ide'], [Medal, 'Voucher & Lencana', '/app/voucher'],
     [Bell, 'Pengaturan', '/app/pengaturan'], [HelpCircle, 'Pusat Bantuan', '/app/bantuan'],
   ]
   return (

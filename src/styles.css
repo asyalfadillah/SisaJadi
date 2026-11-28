@@ -42,7 +42,7 @@ textarea.input{height:auto;padding:12px 16px;resize:vertical;min-height:96px}
 .grid{display:grid;gap:18px}
 .g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
 @media(max-width:900px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}}
+@media(max-width:560px){.g2,.g3{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr);gap:12px}.stat{padding:16px}.stat b{font-size:24px}}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;letter-spacing:-.3px}
 .logo b{color:var(--green)}
 .logo small{display:block;font-size:9px;font-weight:500;color:var(--muted);letter-spacing:0;margin-top:-2px}
@@ -156,7 +156,11 @@ footer.foot .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:
   .bnav a.plus{background:var(--green);color:#fff;width:52px;height:52px;border-radius:50%;justify-content:center;margin-top:-20px;box-shadow:0 8px 16px rgba(46,125,79,.35)}
 }
 .search{display:flex;align-items:center;gap:10px;height:54px;padding:0 18px;border-radius:27px;background:#fff;box-shadow:var(--shadow)}
-.search input{flex:1;border:0;outline:0;background:transparent;height:100%}
+.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;height:100%}
+.search .btn{flex:none}
+.btn{white-space:nowrap}
+.list-item>div{min-width:0}
+.list-item .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .qmenu{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:18px 10px}
 .qmenu a{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;font-weight:600;text-align:center;transition:transform .2s}
 .qmenu a:hover{transform:translateY(-3px)}
@@ -228,3 +232,5 @@ html{overflow-x:clip}.hero{overflow-x:clip}
 .sel-chip{padding:8px 16px;border-radius:19px;background:#fff;border:1.5px solid var(--line);cursor:pointer;font-weight:500;font-size:14px}
 .sel-chip.on{border-color:var(--green);background:var(--mint);color:var(--green);font-weight:600}
 @media print{.side,.bnav,.topbar,.noprint,.bg,.toast{display:none!important}.main{padding:0!important;max-width:none!important}.app{display:block}body{background:#fff}}
+
+.admin-tabs{overflow-x:auto;scrollbar-width:none;gap:2px}.admin-tabs::-webkit-scrollbar{display:none}.admin-tabs button{flex:none;padding:0 16px;white-space:nowrap}
