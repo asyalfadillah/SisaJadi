@@ -37,13 +37,15 @@ export default function AppLayout() {
       <div className="app">
         <aside className="side">
           <div className="logo" style={{ padding: '0 10px 18px' }}><Logo size={20} /></div>
-          <div className="tabs" style={{ margin: '0 0 12px' }}>
-            <button className={mode === 'buyer' ? 'on' : ''} onClick={() => { setMode('buyer'); go('/app') }}><ShoppingBag size={14} /> Pembeli</button>
-            <button className={mode === 'provider' ? 'on' : ''} onClick={() => { setMode('provider'); go('/app/penyedia') }}><Store size={14} /> Penyedia</button>
+          <div className="mode">
+            <button className={mode === 'buyer' ? 'on' : ''} onClick={() => { setMode('buyer'); go('/app') }}><ShoppingBag size={15} />Pembeli</button>
+            <button className={mode === 'provider' ? 'on' : ''} onClick={() => { setMode('provider'); go('/app/penyedia') }}><Store size={15} />Penyedia</button>
           </div>
-          {items.map(([to, t, I, end]) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => 'it' + (isActive ? ' active' : '')}><I size={20} />{t}</NavLink>
-          ))}
+          <div className="nav-list">
+            {items.map(([to, t, I, end]) => (
+              <NavLink key={to} to={to} end={end} className={({ isActive }) => 'it' + (isActive ? ' active' : '') + (to === '/app/admin' ? ' admin' : '')}><I size={19} />{t}</NavLink>
+            ))}
+          </div>
           <div className="card me">
             <div className="avatar">{(name || '?')[0].toUpperCase()}</div>
             <div style={{ minWidth: 0, flex: 1 }}>

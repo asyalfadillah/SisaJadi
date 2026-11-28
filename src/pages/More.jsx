@@ -4,6 +4,7 @@ import { Lightbulb, Search, ChevronRight, Phone, Mail, MessageCircle, ThumbsUp, 
 import { motion } from 'framer-motion'
 import { supabase, toast, num } from '../supabase'
 import { useAuth } from '../auth'
+import { useMode, setMode } from '../mode'
 import Topbar from '../components/Topbar'
 import { Logo, Bg, Seg, Empty, Spinner } from '../components/ui'
 
@@ -132,6 +133,7 @@ export function Profile() {
     Promise.all([supabase.from('sj_listings').select('id', { count: 'exact', head: true }).eq('owner_id', user.id), supabase.from('sj_favorites').select('listing_id', { count: 'exact', head: true })])
       .then(([a, b]) => setSt({ listings: a.count || 0, fav: b.count || 0 }))
   }, [user.id])
+  const mode = useMode()
   const name = profile?.business_name || profile?.full_name || user.email
   const menu = [
     [Building2, 'Edit Profil Usaha', '/app/profil/edit'], [Package, 'Sisa Saya', '/app/permintaan'], [Heart, 'Favorit', '/app/favorit'], [Award, 'Voucher & Lencana', '/app/voucher'],
@@ -144,6 +146,9 @@ export function Profile() {
         <div className="avatar" style={{ width: 64, height: 64, fontSize: 26 }}>{name[0].toUpperCase()}</div>
         <div><h2 style={{ fontSize: 20 }}>{name}</h2><div className="muted" style={{ fontSize: 13 }}>{user.email}{isAdmin ? ' · Admin' : ''}</div></div>
       </div>
+      <div className="card" style={{ padding: 14, marginTop: 14 }}><b style={{ fontSize: 14 }}>Masuk sebagai</b>
+        <div className="tabs" style={{ margin: '8px 0 0' }}><button className={mode === 'buyer' ? 'on' : ''} onClick={() => { setMode('buyer'); toast('Mode Pembeli') }}>Pembeli</button><button className={mode === 'provider' ? 'on' : ''} onClick={() => { setMode('provider'); toast('Mode Penyedia') }}>Penyedia</button></div>
+        {mode === 'provider' && <Link to="/app/penyedia" className="btn sm" style={{ marginTop: 10 }}>Buka Beranda Penyedia</Link>}</div>
       <div className="grid g3" style={{ margin: '14px 0' }}>
         <div className="card stat"><b>{st.listings}</b><span>Sisa diunggah</span></div><div className="card stat"><b>{num(profile?.eco_points)}</b><span>Eco Point</span></div><div className="card stat"><b>{st.fav}</b><span>Favorit</span></div>
       </div>
