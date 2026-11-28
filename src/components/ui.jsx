@@ -3,17 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Leaf, Recycle, Shirt, Package, TreePine, Boxes } from 'lucide-react'
 
 export function Logo({ size = 22 }) {
+  const px = Math.round(size * 1.9)
   return (
     <div className="logo" style={{ fontSize: size }}>
-      <svg width={size + 14} height={size + 14} viewBox="0 0 64 64" aria-hidden="true">
-        <rect width="64" height="64" rx="18" fill="#2E7D4F" />
-        <path d="M16 42c0-13 10-22 31-22 0 17-9 28-24 28-3 0-5-2-7-6Z" fill="#F7E7A6" />
-        <path d="M19 49c7-11 13-18 24-23" stroke="#2E7D4F" strokeWidth="3.2" strokeLinecap="round" fill="none" />
-      </svg>
-      <div>
-        Sisa<b>Jadi</b>
-        <small>Sisa hari ini, nilai esok hari</small>
-      </div>
+      <img src="/logo.png" width={px} height={px} alt="" style={{ width: px, height: px, objectFit: 'contain' }} />
+      <div>Sisa<b>Jadi</b></div>
     </div>
   )
 }
