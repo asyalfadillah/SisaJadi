@@ -15,10 +15,15 @@ export function ChatList({ initial = 'pesan' }) {
   const [threads, setThreads] = useState(null)
   const [notes, setNotes] = useState(null)
   const [ntab, setNtab] = useState('Semua')
+  const [peers, setPeers] = useState({})
 
   useEffect(() => {
     supabase.from('sj_threads').select('*, sj_listings(title,owner_name)').order('last_message_at', { ascending: false })
-      .then(({ data }) => setThreads(data || []))
+      .then(async ({ data }) => {
+        setThreads(data || [])
+        const ids = [...new Set((data || []).map((t) => (t.seller_id === user.id ? t.buyer_id : t.seller_id)))]
+        const out = {}; await Promise.all(ids.map(async (id) => { try { out[id] = await rpc('sj_peer_name', { p_uid: id }) } catch { /* abaikan */ } })); setPeers(out)
+      })
     supabase.from('sj_notifications').select('*').order('created_at', { ascending: false }).limit(60)
       .then(({ data }) => setNotes(data || []))
   }, [])
@@ -32,8 +37,8 @@ export function ChatList({ initial = 'pesan' }) {
     setNotes((x) => x.map((y) => ({ ...y, read: true }))); toast('Semua notifikasi dibaca')
   }
   const th = (threads || []).filter((t) => {
-    if (flt === 'Request' && t.kind !== 'request') return false
-    if (flt === 'Barter' && t.kind !== 'barter') return false
+    if (flt === 'Request' && t.kind !== 'Request') return false
+    if (flt === 'Barter' && t.kind !== 'Barter') return false
     return !q || (t.sj_listings?.title || '').toLowerCase().includes(q.toLowerCase())
   })
   const nt = (notes || []).filter((n) => ntab === 'Semua' || (ntab === 'Permintaan' ? n.kind === 'permintaan' : n.kind !== 'permintaan'))
@@ -50,9 +55,9 @@ export function ChatList({ initial = 'pesan' }) {
           {threads === null ? <Spinner /> : th.length === 0 ? <Empty icon={MessageCircle} title="Belum ada chat" text="Mulai chat dari halaman detail sisa." /> :
             th.map((t) => (
               <Link key={t.id} to={'/app/chat/' + t.id} className="card list-item" style={{ flexWrap: 'nowrap' }}>
-                <div className="avatar">{(t.sj_listings?.owner_name || '?')[0]}</div>
+                <div className="avatar">{(peers[t.seller_id === user.id ? t.buyer_id : t.seller_id] || t.sj_listings?.owner_name || '?')[0]}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <b>{t.seller_id === user.id ? 'Pembeli · ' : ''}{t.sj_listings?.title}</b>
+                  <b>{peers[t.seller_id === user.id ? t.buyer_id : t.seller_id] || (t.seller_id === user.id ? 'Pembeli' : t.sj_listings?.owner_name)}</b><div style={{ fontSize: 12, color: 'var(--green)' }}>{t.sj_listings?.title}</div>
                   <div className="muted" style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.last_body || 'Belum ada pesan'}</div>
                 </div>
                 <span className="muted" style={{ fontSize: 12 }}>{timeAgo(t.last_message_at)}</span>
@@ -84,9 +89,10 @@ export function ChatRoom() {
   const [msgs, setMsgs] = useState([])
   const [txt, setTxt] = useState('')
   const end = useRef(null)
+  const [peer, setPeer] = useState('')
 
   useEffect(() => {
-    supabase.from('sj_threads').select('*, sj_listings(id,title,owner_name)').eq('id', id).maybeSingle().then(({ data }) => setT(data))
+    supabase.from('sj_threads').select('*, sj_listings(id,title,owner_name)').eq('id', id).maybeSingle().then(({ data }) => { setT(data || false); if (data) rpc('sj_peer_name', { p_uid: data.seller_id === user.id ? data.buyer_id : data.seller_id }).then(setPeer).catch(() => {}) })
     supabase.from('sj_messages').select('*').eq('thread_id', id).order('created_at').then(({ data }) => setMsgs(data || []))
     const ch = supabase.channel('thread-' + id).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sj_messages', filter: 'thread_id=eq.' + id },
       (p) => setMsgs((m) => (m.some((x) => x.id === p.new.id) ? m : [...m, p.new]))).subscribe()
@@ -102,9 +108,10 @@ export function ChatRoom() {
     if (error) { toast(error.message); setTxt(body) } else setMsgs((m) => (m.some((x) => x.id === data.id) ? m : [...m, data]))
   }
   if (t === null) return <Spinner />
+  if (t === false) return <Empty icon={MessageCircle} title="Chat tidak ditemukan" />
   return (
     <>
-      <Topbar title={t.sj_listings?.title || 'Chat'} sub={t.sj_listings?.owner_name} />
+      <Topbar title={peer || t.sj_listings?.owner_name || 'Chat'} sub={t.sj_listings?.title} />
       <div className="card" style={{ padding: 16 }}>
         <div className="chatbox">
           {msgs.length === 0 && <div className="muted" style={{ textAlign: 'center', margin: 'auto' }}>Belum ada pesan. Sapa dulu 👋</div>}
