@@ -42,26 +42,30 @@ export const HasilIde = () => (
 )
 
 /* ---------- Bantuan ---------- */
-const HELP = [
-  { id: 1, cat: 'Akun', t: 'Cara mengubah profil usaha', steps: ['Buka Profil.', 'Pilih Edit Profil Usaha.', 'Ubah data lalu simpan.'] },
-  { id: 2, cat: 'Transaksi', t: 'Cara mengajukan request', steps: ['Buka detail sisa.', 'Tekan Ajukan Request.', 'Isi jumlah dan metode, lalu konfirmasi.'] },
-  { id: 3, cat: 'Transaksi', t: 'Cara menjadwalkan pickup', steps: ['Buka Permintaan.', 'Pada request yang diterima, pilih Jadwalkan Pickup.', 'Pilih tanggal, waktu, dan alamat.'] },
-  { id: 4, cat: 'Eco Point', t: 'Cara mendapatkan Eco Point', steps: ['Selesaikan transaksi (+20 poin).', 'Klaim hadiah misi mingguan.', 'Lakukan check-in harian.'] },
-  { id: 5, cat: 'Eco Point', t: 'Cara menukar reward', steps: ['Buka Eco Point > Tukar Reward.', 'Pilih reward lalu Tukar Sekarang.', 'Voucher ada di Voucher Saya.'] },
-  { id: 6, cat: 'Akun', t: 'Cara menjual sisa produksi', steps: ['Tekan Jual Sisa.', 'Isi detail dan foto.', 'Tentukan harga lalu terbitkan.'] },
-]
+const useHelp = () => {
+  const [h, setH] = useState(null)
+  useEffect(() => { supabase.from('sj_help').select('*').eq('active', true).order('id').then(({ data }) => setH((data || []).map((x) => ({ ...x, steps: x.steps.split('\n').filter(Boolean) })))) }, [])
+  return h
+}
+export const useContent = () => {
+  const [c, setC] = useState({})
+  useEffect(() => { supabase.from('sj_content').select('*').then(({ data }) => setC(Object.fromEntries((data || []).map((x) => [x.key, x.value])))) }, [])
+  return c
+}
 export function Bantuan() {
   const [q, setQ] = useState('')
   const [c, setC] = useState('Semua')
-  const cats = ['Semua', ...new Set(HELP.map((h) => h.cat))]
-  const rows = HELP.filter((h) => (c === 'Semua' || h.cat === c) && h.t.toLowerCase().includes(q.toLowerCase()))
+  const HELP = useHelp()
+  if (!HELP) return <Spinner />
+  const cats = ['Semua', ...new Set(HELP.map((h) => h.category))]
+  const rows = HELP.filter((h) => (c === 'Semua' || h.category === c) && h.title.toLowerCase().includes(q.toLowerCase()))
   return (
     <>
       <Topbar title="Pusat Bantuan" />
       <div className="search"><Search size={20} color="#2E7D4F" /><input placeholder="Cari bantuan…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <div className="rowflex" style={{ marginTop: 10 }}>{cats.map((x) => <button key={x} className={'chip' + (c === x ? ' on' : '')} onClick={() => setC(x)}>{x}</button>)}</div>
       {rows.length === 0 ? <Empty icon={HelpCircle} title="Tidak ada artikel" text="Coba kata kunci lain atau hubungi kami." /> : rows.map((h) => (
-        <Link key={h.id} to={'/app/bantuan/' + h.id} className="card list-item"><div><b>{h.t}</b><div className="muted" style={{ fontSize: 12 }}>{h.cat}</div></div><ChevronRight size={18} /></Link>))}
+        <Link key={h.id} to={'/app/bantuan/' + h.id} className="card list-item"><div><b>{h.title}</b><div className="muted" style={{ fontSize: 12 }}>{h.category}</div></div><ChevronRight size={18} /></Link>))}
       <Link to="/app/bantuan/hubungi" className="btn sec block" style={{ marginTop: 14, maxWidth: 420 }}>Hubungi Kami</Link>
     </>
   )
@@ -69,13 +73,15 @@ export function Bantuan() {
 export function DetailBantuan() {
   const { id } = useParams()
   const [vote, setVote] = useState(null)
+  const HELP = useHelp()
+  if (!HELP) return <Spinner />
   const h = HELP.find((x) => String(x.id) === id)
   if (!h) return <Navigate to="/app/bantuan" replace />
   return (
     <>
       <Topbar title="Detail Bantuan" />
       <div className="card" style={{ padding: 24, maxWidth: 600 }}>
-        <h2>{h.t}</h2>
+        <h2>{h.title}</h2>
         <ol style={{ paddingLeft: 20, lineHeight: 2, margin: '14px 0' }}>{h.steps.map((s) => <li key={s}>{s}</li>)}</ol>
         <b>Apakah membantu?</b>
         {vote === null ? <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
@@ -93,6 +99,7 @@ export function Hubungi() {
   const [cat, setCat] = useState('Umum')
   const [body, setBody] = useState('')
   const [busy, setBusy] = useState(false)
+  const ct = useContent()
   const send = async (e) => {
     e.preventDefault(); setBusy(true)
     const { error } = await supabase.from('sj_support_messages').insert({ user_id: user.id, category: cat, body: body.trim() })
@@ -104,9 +111,9 @@ export function Hubungi() {
     <>
       <Topbar title="Hubungi Kami" />
       <div className="grid g3" style={{ marginBottom: 16 }}>
-        <a className="card stat" href="https://wa.me/6281234567890" target="_blank" rel="noreferrer"><MessageCircle color="#2E7D4F" /><b style={{ fontSize: 16 }}>WhatsApp</b></a>
-        <a className="card stat" href="mailto:halo@sisajadi.id"><Mail color="#2E7D4F" /><b style={{ fontSize: 16 }}>Email</b></a>
-        <a className="card stat" href="tel:+622112345678"><Phone color="#2E7D4F" /><b style={{ fontSize: 16 }}>Telepon</b></a>
+        {ct.contact_wa && <a className="card stat" href={'https://wa.me/' + ct.contact_wa.replace(/\D/g, '')} target="_blank" rel="noreferrer"><MessageCircle color="#2E7D4F" /><b style={{ fontSize: 16 }}>WhatsApp</b></a>}
+        {ct.contact_email && <a className="card stat" href={'mailto:' + ct.contact_email}><Mail color="#2E7D4F" /><b style={{ fontSize: 16 }}>Email</b></a>}
+        {ct.contact_phone && <a className="card stat" href={'tel:' + ct.contact_phone}><Phone color="#2E7D4F" /><b style={{ fontSize: 16 }}>Telepon</b></a>}
       </div>
       <form className="card" style={{ padding: 22, maxWidth: 560 }} onSubmit={send}>
         <div className="field"><label>Kategori</label><select className="input" value={cat} onChange={(e) => setCat(e.target.value)}>{['Umum', 'Akun', 'Transaksi', 'Eco Point', 'Lainnya'].map((x) => <option key={x}>{x}</option>)}</select></div>
@@ -213,10 +220,10 @@ export function PengNotif() {
     </>
   )
 }
-export const Privasi = () => (<><Topbar title="Kebijakan Privasi" /><div className="card" style={{ padding: 24, maxWidth: 640, lineHeight: 1.7 }}>
-  <p>SisaJadi menyimpan data akun (nama, email, nomor telepon, alamat usaha) dan data transaksi untuk menjalankan layanan.</p>
-  <p style={{ marginTop: 10 }}>Data tidak dijual kepada pihak ketiga. Lokasi hanya dipakai untuk menghitung jarak sisa terdekat dan tidak disimpan di server kecuali pada listing yang kamu unggah.</p>
-  <p style={{ marginTop: 10 }}>Kamu dapat meminta penghapusan data lewat Hubungi Kami.</p></div></>)
+export function Privasi() {
+  const ct = useContent()
+  return (<><Topbar title="Kebijakan Privasi" /><div className="card" style={{ padding: 24, maxWidth: 640, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{ct.privacy ?? ''}</div></>)
+}
 export const Tentang = () => (<><Topbar title="Tentang SisaJadi" /><div className="card" style={{ padding: 28, maxWidth: 560, textAlign: 'center' }}><Logo size={26} />
   <p style={{ margin: '16px 0' }}>SisaJadi menghubungkan UMKM untuk menjual, barter, dan mendonasikan sisa produksi agar kembali bernilai.</p><div className="muted">Versi 1.0</div></div></>)
 

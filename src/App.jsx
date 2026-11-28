@@ -17,6 +17,7 @@ import { Favorites, Peringkat, Komunitas, PapanKomunitas, DetailKomunitas } from
 import EcoPoint, { Reward, DetailReward, Voucher, Lencana, Dampak, RingkasanDampak, RiwayatDampak, RincianDampak, Sertifikat } from './pages/EcoPoint'
 import { Ide, HasilIde, Bantuan, DetailBantuan, Hubungi, Profile, EditProfil, Pengaturan, PengNotif, Privasi, Tentang, Onboarding } from './pages/More'
 import Admin from './pages/Admin'
+import Kurir from './pages/Kurir'
 import Penyedia from './pages/Penyedia'
 import { Checkout, DaftarPembayaran, DetailPembayaran, Dompet } from './pages/Pembayaran'
 
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="pengaturan/notifikasi" element={<PengNotif />} />
         <Route path="pengaturan/privasi" element={<Privasi />} />
         <Route path="pengaturan/tentang" element={<Tentang />} />
+        <Route path="kurir" element={<Kurir />} />
         <Route path="penyedia" element={<Penyedia />} />
         <Route path="bayar/:requestId" element={<Checkout />} />
         <Route path="pembayaran" element={<DaftarPembayaran />} />

@@ -13,9 +13,8 @@ const Row = ({ a, b, bold }) => <div className="kv"><span className={bold ? '' :
 export function Checkout() {
   const { requestId } = useParams()
   const nav = useNavigate()
-  const { pos } = useGeo(true)
+  const { pos, ask, err } = useGeo(true)
   const [req, setReq] = useState(null)
-  const [km, setKm] = useState(5)
   const [q, setQ] = useState(null)
   const [method, setMethod] = useState('QRIS')
   const [busy, setBusy] = useState(false)
@@ -23,18 +22,13 @@ export function Checkout() {
   useEffect(() => {
     supabase.from('sj_requests').select('*, sj_listings(title,lat,lng,owner_name)').eq('id', requestId).maybeSingle().then(({ data }) => setReq(data || false))
   }, [requestId])
-  useEffect(() => {
-    const l = req?.sj_listings
-    const d = l && pos ? dist(pos, { lat: l.lat, lng: l.lng }) : null
-    if (d != null) setKm(Math.max(1, Math.ceil(d)))
-  }, [req, pos])
-  useEffect(() => { if (req) rpc('sj_quote', { p_request: Number(requestId), p_km: km }).then(setQ).catch((e) => toast(e.message)) }, [req, km, requestId])
+  useEffect(() => { if (req) rpc('sj_quote', { p_request: Number(requestId), p_lat: pos?.lat ?? null, p_lng: pos?.lng ?? null }).then(setQ).catch((e) => toast(e.message)) }, [req, pos, requestId])
 
   if (req === null) return <Spinner />
   if (!req || req.status !== 'diterima') return <Empty title="Belum bisa dibayar" text="Pembayaran tersedia setelah penyedia menerima request."><Link className="btn sm" to="/app/permintaan">Kembali</Link></Empty>
   const pay = async () => {
     setBusy(true)
-    try { const id = await rpc('sj_pay', { p_request: Number(requestId), p_method: method, p_km: km }); nav('/app/pembayaran/' + id, { replace: true, state: { fresh: true } }) }
+    try { const id = await rpc('sj_pay', { p_request: Number(requestId), p_method: method, p_lat: pos?.lat ?? null, p_lng: pos?.lng ?? null }); nav('/app/pembayaran/' + id, { replace: true, state: { fresh: true } }) }
     catch (e) { toast(e.message); setBusy(false) }
   }
   const kurir = req.method === 'Kurir'
@@ -46,13 +40,13 @@ export function Checkout() {
           <b>Rincian biaya</b>
           {q ? <>
             <Row a={`Harga sisa (${req.qty ?? ''})`} b={rupiah(q.item_total)} />
-            {kurir && <Row a={`Biaya kurir (~${km} km)`} b={rupiah(q.courier_fee)} />}
+            {kurir && <Row a={`Biaya kurir (~${q.distance_km} km)`} b={rupiah(q.courier_fee)} />}
             {!kurir && <Row a="Pengambilan" b="Ambil sendiri · Gratis" />}
             <Row a="Total bayar" b={rupiah(q.total)} bold />
             <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>Fee layanan {q.fee_pct}% dipotong dari penyedia, bukan dari kamu.</div>
           </> : <Spinner />}
-          {kurir && <div className="field" style={{ marginTop: 14 }}><label>Perkiraan jarak (km)</label>
-            <input className="input" type="number" min="1" max="100" value={km} onChange={(e) => setKm(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} /></div>}
+          {kurir && q?.estimated && <div className="err" style={{ marginTop: 12 }}>Lokasimu belum diketahui, jarak diperkirakan 10 km. {err || ''} <button type="button" className="btn sm sec" style={{ marginTop: 8 }} onClick={ask}>Aktifkan lokasi</button></div>}
+          {kurir && q && !q.estimated && <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>Jarak dihitung server dari lokasi penjual ke lokasimu.</div>}
         </div>
         <div className="card" style={{ padding: 22 }}>
           <b>Metode pembayaran</b>

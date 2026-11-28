@@ -63,7 +63,7 @@ export default function Admin() {
       <div className="grid g4" style={{ marginBottom: 18 }}>{stats.map(([t, n]) => <div key={t} className="card stat"><b>{n}</b><span>{t}</span></div>)}</div>
       {msg && <div className="ok">{msg}</div>}
       <div className="tabs" style={{ maxWidth: 960 }}>
-        {[['akun', 'Akun'], ['listing', 'Sisa'], ['request', 'Request'], ['reward', 'Reward'], ['pickup', 'Pickup'], ['bantuan', 'Bantuan'], ['pembayaran', 'Pembayaran'], ['tarif', 'Tarif & Fee'], ['siaran', 'Siaran']].map(([k, t]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
+        {[['akun', 'Akun'], ['listing', 'Sisa'], ['request', 'Request'], ['reward', 'Reward'], ['pickup', 'Pickup'], ['bantuan', 'Bantuan'], ['pembayaran', 'Pembayaran'], ['tarif', 'Tarif & Fee'], ['konten', 'Konten'], ['siaran', 'Siaran']].map(([k, t]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === 'akun' && (
@@ -74,7 +74,7 @@ export default function Admin() {
                 <tr key={u.id} className={sel?.id === u.id ? 'sel' : ''} onClick={() => setSel(sel?.id === u.id ? null : u)} style={{ cursor: 'pointer' }}>
                   <td><b>{u.business_name || u.full_name || '-'}</b><div className="muted" style={{ fontSize: 12 }}>{u.full_name}</div></td>
                   <td>{u.email}</td><td>{u.eco_points}</td>
-                  <td onClick={(e) => e.stopPropagation()}><select className="input" style={{ height: 36, width: 110 }} value={u.role} disabled={u.id === user.id} onChange={(e) => setRole(u, e.target.value)}><option>user</option><option>admin</option></select></td>
+                  <td onClick={(e) => e.stopPropagation()}><select className="input" style={{ height: 36, width: 110 }} value={u.role} disabled={u.id === user.id} onChange={(e) => setRole(u, e.target.value)}><option>user</option><option>kurir</option><option>admin</option></select></td>
                   <td className="muted">{timeAgo(u.created_at)}</td></tr>))}
             </tbody></table>
           </div>
@@ -116,7 +116,7 @@ export default function Admin() {
             <button className={'btn sm' + (r.active ? ' sec' : '')} onClick={() => togRw(r)}>{r.active ? 'Nonaktifkan' : 'Aktifkan'}</button></div>)}</div>
         </div>)}
 
-      {tab === 'pickup' && (ex.pickups.length === 0 ? <div className="card empty">Belum ada pickup.</div> : ex.pickups.map((p) => <PickupRow key={p.id} p={p} onDone={(t) => { flash(t); load() }} />))}
+      {tab === 'pickup' && (ex.pickups.length === 0 ? <div className="card empty">Belum ada pickup.</div> : ex.pickups.map((p) => <PickupRow key={p.id} p={p} couriers={d.users.filter((u) => u.role === 'kurir')} onDone={(t) => { flash(t); load() }} />))}
 
       {tab === 'bantuan' && (ex.support.length === 0 ? <div className="card empty">Belum ada pesan bantuan.</div> : ex.support.map((m) => (
         <div key={m.id} className="card list-item"><div><b>{m.category}</b> <span className="muted" style={{ fontSize: 12 }}>· {d.users.find((u) => u.id === m.user_id)?.email || m.user_id.slice(0, 8)} · {timeAgo(m.created_at)}</span><div style={{ fontSize: 14 }}>{m.body}</div></div><span className="tag">{m.status}</span></div>)))}
@@ -142,6 +142,7 @@ export default function Admin() {
           <p className="muted" style={{ fontSize: 13 }}>Biaya kurir = tarif dasar + tarif per km × jarak (dibulatkan ke atas).</p>
         </div>)}
 
+      {tab === 'konten' && <KontenAdmin flash={flash} />}
       {tab === 'siaran' && (
         <form className="card" style={{ padding: 20, maxWidth: 520 }} onSubmit={async (e) => { e.preventDefault(); const { data, error } = await supabase.rpc('sj_admin_broadcast', { p_title: bc.title, p_body: bc.body }); flash(error ? error.message : 'Terkirim ke ' + data + ' akun'); if (!error) setBc({ title: '', body: '' }) }}>
           <h3 style={{ marginBottom: 12 }}>Kirim notifikasi ke semua akun</h3>
@@ -152,15 +153,54 @@ export default function Admin() {
   )
 }
 
-function PickupRow({ p, onDone }) {
+function PickupRow({ p, couriers, onDone }) {
   const [st, setSt] = useState(p.status), [c, setC] = useState(p.courier_name || ''), [pl, setPl] = useState(p.courier_plate || '')
+  const [cid, setCid] = useState(p.courier_id || '')
+  const assign = async () => { const { error } = await supabase.rpc('sj_admin_assign_courier', { p_id: p.id, p_courier: cid, p_plate: pl || null }); onDone(error ? error.message : 'Kurir ditugaskan') }
   const save = async () => { const { error } = await supabase.rpc('sj_admin_pickup', { p_id: p.id, p_status: st, p_courier: c || null, p_plate: pl || null }); onDone(error ? error.message : 'Pickup diperbarui') }
   return (
     <div className="card list-item"><div><b>{p.code}</b><div className="muted" style={{ fontSize: 13 }}>{p.pickup_date} · {p.slot} · {p.address}</div></div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <select className="input" style={{ height: 40, width: 130 }} value={st} onChange={(e) => setSt(e.target.value)}>{['dijadwalkan', 'ditugaskan', 'menuju', 'selesai'].map((x) => <option key={x}>{x}</option>)}</select>
+        {couriers.length > 0 && <><select className="input" style={{ height: 40, width: 160 }} value={cid} onChange={(e) => setCid(e.target.value)}><option value="">Pilih akun kurir</option>{couriers.map((u) => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}</select><button className="btn sm sec" disabled={!cid} onClick={assign}>Tugaskan</button></>}
         <input className="input" style={{ height: 40, width: 130 }} placeholder="Kurir" value={c} onChange={(e) => setC(e.target.value)} />
         <input className="input" style={{ height: 40, width: 100 }} placeholder="Plat" value={pl} onChange={(e) => setPl(e.target.value)} />
         <button className="btn sm" onClick={save}>Simpan</button></div></div>
+  )
+}
+
+function KontenAdmin({ flash }) {
+  const [c, setC] = useState({})
+  const [help, setHelp] = useState([])
+  const [nh, setNh] = useState({ category: 'Akun', title: '', steps: '' })
+  const load = async () => {
+    const [a, b] = await Promise.all([supabase.from('sj_content').select('*'), supabase.from('sj_help').select('*').order('id')])
+    setC(Object.fromEntries((a.data || []).map((x) => [x.key, x.value]))); setHelp(b.data || [])
+  }
+  useEffect(() => { load() }, [])
+  const saveC = async (k) => { const { error } = await supabase.from('sj_content').update({ value: c[k] || '' }).eq('key', k); flash(error ? error.message : 'Tersimpan') }
+  const addH = async (e) => { e.preventDefault(); const { error } = await supabase.from('sj_help').insert(nh); flash(error ? error.message : 'Artikel ditambah'); setNh({ category: 'Akun', title: '', steps: '' }); load() }
+  const upd = async (h, patch) => { const { error } = await supabase.from('sj_help').update(patch).eq('id', h.id); if (error) flash(error.message); load() }
+  const del = async (h) => { if (confirm('Hapus artikel?')) { await supabase.from('sj_help').delete().eq('id', h.id); load() } }
+  return (
+    <div className="grid g2" style={{ alignItems: 'start' }}>
+      <div className="card" style={{ padding: 20 }}>
+        <h3 style={{ marginBottom: 12 }}>Kontak & kebijakan</h3>
+        {[['contact_wa', 'WhatsApp (mis. 6281234567890)'], ['contact_email', 'Email'], ['contact_phone', 'Telepon']].map(([k, t]) => (
+          <div key={k} className="field"><label>{t}</label><div style={{ display: 'flex', gap: 8 }}><input className="input" value={c[k] || ''} onChange={(e) => setC({ ...c, [k]: e.target.value })} /><button className="btn sm" onClick={() => saveC(k)}>Simpan</button></div></div>))}
+        <div className="field"><label>Kebijakan Privasi</label><textarea className="input" rows={8} value={c.privacy || ''} onChange={(e) => setC({ ...c, privacy: e.target.value })} /></div>
+        <button className="btn block" onClick={() => saveC('privacy')}>Simpan kebijakan</button>
+        <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>Kontak yang dikosongkan tidak ditampilkan di aplikasi.</p>
+      </div>
+      <div>
+        <form className="card" style={{ padding: 20, marginBottom: 14 }} onSubmit={addH}><h3 style={{ marginBottom: 12 }}>Tambah artikel bantuan</h3>
+          <div className="field"><label>Kategori</label><input className="input" required value={nh.category} onChange={(e) => setNh({ ...nh, category: e.target.value })} /></div>
+          <div className="field"><label>Judul</label><input className="input" required value={nh.title} onChange={(e) => setNh({ ...nh, title: e.target.value })} /></div>
+          <div className="field"><label>Langkah (satu per baris)</label><textarea className="input" rows={4} required value={nh.steps} onChange={(e) => setNh({ ...nh, steps: e.target.value })} /></div>
+          <button className="btn block">Tambah</button></form>
+        {help.map((h) => <div key={h.id} className="card list-item"><div><b>{h.title}</b><div className="muted" style={{ fontSize: 12 }}>{h.category}</div></div>
+          <div style={{ display: 'flex', gap: 8 }}><button className={'btn sm' + (h.active ? ' sec' : '')} onClick={() => upd(h, { active: !h.active })}>{h.active ? 'Sembunyikan' : 'Tampilkan'}</button><button className="btn sm danger" onClick={() => del(h)}>Hapus</button></div></div>)}
+      </div>
+    </div>
   )
 }

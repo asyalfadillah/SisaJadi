@@ -1,5 +1,5 @@
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Home, Compass, PlusCircle, Heart, Award, Inbox, User, ShieldCheck, Lightbulb, LogOut, MessageCircle, Target, Map, Users, Leaf, Wallet, CreditCard, Store, ShoppingBag } from 'lucide-react'
+import { Home, Compass, PlusCircle, Heart, Award, Inbox, User, ShieldCheck, Lightbulb, LogOut, MessageCircle, Target, Map, Users, Leaf, Wallet, CreditCard, Store, ShoppingBag, Truck } from 'lucide-react'
 import { useState } from 'react'
 import { Splash } from './More'
 import { useMode, setMode } from '../mode'
@@ -26,6 +26,7 @@ export default function AppLayout() {
     ['/app/chat', 'Pesan', MessageCircle], ['/app/misi', 'Misi', Target], ['/app/dampak', 'Dampak', Leaf], ['/app/profil', 'Profil', User],
   ]
   const items = mode === 'provider' ? provider : buyer
+  if (profile?.role === 'kurir') items.unshift(['/app/kurir', 'Tugas Kurir', Truck])
   if (isAdmin) items.push(['/app/admin', 'Admin', ShieldCheck])
   const name = profile?.business_name || profile?.full_name || user.email
   return (

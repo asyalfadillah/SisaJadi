@@ -90,15 +90,26 @@ export function ChatRoom() {
   const [txt, setTxt] = useState('')
   const end = useRef(null)
   const [peer, setPeer] = useState('')
+  const [typing, setTyping] = useState(false)
+  const chRef = useRef(null)
+  const tmo = useRef(null)
 
   useEffect(() => {
     supabase.from('sj_threads').select('*, sj_listings(id,title,owner_name)').eq('id', id).maybeSingle().then(({ data }) => { setT(data || false); if (data) rpc('sj_peer_name', { p_uid: data.seller_id === user.id ? data.buyer_id : data.seller_id }).then(setPeer).catch(() => {}) })
     supabase.from('sj_messages').select('*').eq('thread_id', id).order('created_at').then(({ data }) => setMsgs(data || []))
-    const ch = supabase.channel('thread-' + id).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sj_messages', filter: 'thread_id=eq.' + id },
-      (p) => setMsgs((m) => (m.some((x) => x.id === p.new.id) ? m : [...m, p.new]))).subscribe()
-    return () => { supabase.removeChannel(ch) }
+    const markRead = () => supabase.rpc('sj_mark_read', { p_thread: Number(id) })
+    markRead()
+    const ch = supabase.channel('thread-' + id, { config: { broadcast: { self: false } } })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sj_messages', filter: 'thread_id=eq.' + id },
+        (p) => { setMsgs((m) => (m.some((x) => x.id === p.new.id) ? m : [...m, p.new])); if (p.new.sender_id !== user.id) { setTyping(false); markRead() } })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sj_messages', filter: 'thread_id=eq.' + id },
+        (p) => setMsgs((m) => m.map((x) => (x.id === p.new.id ? { ...x, ...p.new } : x))))
+      .on('broadcast', { event: 'typing' }, (p) => { if (p.payload?.uid !== user.id) { setTyping(true); clearTimeout(tmo.current); tmo.current = setTimeout(() => setTyping(false), 2500) } })
+      .subscribe()
+    chRef.current = ch
+    return () => { clearTimeout(tmo.current); supabase.removeChannel(ch) }
   }, [id])
-  useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [msgs])
+  useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [msgs, typing])
 
   const send = async (e) => {
     e.preventDefault()
@@ -117,11 +128,12 @@ export function ChatRoom() {
           {msgs.length === 0 && <div className="muted" style={{ textAlign: 'center', margin: 'auto' }}>Belum ada pesan. Sapa dulu 👋</div>}
           {msgs.map((m) => (
             <div key={m.id} className={'bubble ' + (m.sender_id === user.id ? 'me' : 'them')}>{m.body}
-              <div style={{ fontSize: 10, opacity: .7, textAlign: 'right', marginTop: 2 }}>{fmtTime(m.created_at)}</div></div>))}
+              <div style={{ fontSize: 10, opacity: .7, textAlign: 'right', marginTop: 2 }}>{fmtTime(m.created_at)}{m.sender_id === user.id ? (m.read_at ? ' ✓✓' : ' ✓') : ''}</div></div>))}
+          {typing && <div className="bubble them muted" style={{ fontStyle: 'italic' }}>{peer || 'Lawan bicara'} sedang mengetik…</div>}
           <div ref={end} />
         </div>
         <form onSubmit={send} className="search" style={{ marginTop: 12 }}>
-          <input placeholder="Tulis pesan…" value={txt} onChange={(e) => setTxt(e.target.value)} maxLength={1000} />
+          <input placeholder="Tulis pesan…" value={txt} onChange={(e) => { setTxt(e.target.value); chRef.current?.send({ type: 'broadcast', event: 'typing', payload: { uid: user.id } }) }} maxLength={1000} />
           <button className="btn sm" aria-label="Kirim"><Send size={16} /></button>
         </form>
       </div>
