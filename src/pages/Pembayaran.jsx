@@ -40,7 +40,8 @@ export function Checkout() {
           <b>Rincian biaya</b>
           {q ? <>
             <Row a={`Harga sisa (${req.qty ?? ''})`} b={rupiah(q.item_total)} />
-            {kurir && <Row a={`Biaya kurir (~${q.distance_km} km)`} b={rupiah(q.courier_fee)} />}
+            {kurir && <Row a={`Ongkir ${q.courier || ''} (~${q.distance_km} km)`} b={rupiah(q.courier_fee)} />}
+            {kurir && q.eta && <Row a="Estimasi tiba" b={q.eta} />}
             {!kurir && <Row a="Pengambilan" b="Ambil sendiri · Gratis" />}
             <Row a="Total bayar" b={rupiah(q.total)} bold />
             <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>Fee layanan {q.fee_pct}% dipotong dari penyedia, bukan dari kamu.</div>
@@ -108,7 +109,7 @@ export function DetailPembayaran() {
         {p.courier_fee > 0 && <Row a="Biaya kurir" b={rupiah(p.courier_fee)} />}
         {!buyer && <Row a={`Fee layanan`} b={'- ' + rupiah(p.platform_fee)} />}
         <Row a={buyer ? 'Total dibayar' : 'Diterima penyedia'} b={rupiah(buyer ? p.total : p.item_total - p.platform_fee)} bold />
-        {buyer && p.sj_requests?.method === 'Kurir' && (pk ? <Link className="btn sec block" style={{ marginTop: 14 }} to={'/app/pickup/' + pk.id}><Truck size={18} />Lihat Pickup</Link> : <Link className="btn sec block" style={{ marginTop: 14 }} to={'/app/pickup/jadwal/' + p.request_id}><Truck size={18} />Jadwalkan Pickup</Link>)}
+        {buyer && p.sj_requests?.method === 'Kurir' && (pk && <Link className="btn sec block" style={{ marginTop: 14 }} to={'/app/pickup/' + pk.id}><Truck size={18} />Lacak Pengiriman</Link>)}
         {canRelease && <button className="btn block" style={{ marginTop: 14 }} onClick={release}>Pesanan Sudah Diterima</button>}
         {buyer && p.status === 'dibayar' && !canRelease && <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>Tombol konfirmasi aktif setelah pickup selesai.</p>}
       </div>

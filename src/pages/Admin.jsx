@@ -14,6 +14,7 @@ export default function Admin() {
   const [ex, setEx] = useState({ pickups: [], support: [] })
   const [pays, setPays] = useState([])
   const [cfg, setCfg] = useState({})
+  const [cour, setCour] = useState([])
   const [bc, setBc] = useState({ title: '', body: '' })
   const [rw, setRw] = useState({ title: '', description: '', cost: '' })
 
@@ -26,7 +27,7 @@ export default function Admin() {
     ])
     const [pk, sp] = await Promise.all([supabase.from('sj_pickups').select('*').order('created_at', { ascending: false }), supabase.from('sj_support_messages').select('*').order('created_at', { ascending: false })])
     const [py, st] = await Promise.all([supabase.from('sj_payments').select('*, sj_requests(sj_listings(title))').order('paid_at', { ascending: false }), supabase.from('sj_settings').select('*')])
-    setPays(py.data || []); setCfg(Object.fromEntries((st.data || []).map((x) => [x.key, Number(x.value)])))
+    const co = await supabase.from('sj_couriers').select('*').order('sort'); setCour(co.data || []); setPays(py.data || []); setCfg(Object.fromEntries((st.data || []).map((x) => [x.key, Number(x.value)])))
     setEx({ pickups: pk.data || [], support: sp.data || [] })
     setD({ users: u.data || [], listings: l.data || [], requests: r.data || [], rewards: w.data || [] })
   }, [])
@@ -135,11 +136,17 @@ export default function Admin() {
       {tab === 'tarif' && (
         <div className="card" style={{ padding: 20, maxWidth: 480 }}>
           <h3 style={{ marginBottom: 12 }}>Tarif kurir & fee layanan</h3>
-          {[['courier_base', 'Tarif dasar kurir (Rp)'], ['courier_per_km', 'Tarif per km (Rp)'], ['fee_pct', 'Fee layanan platform (%)']].map(([k, t]) => (
+          {[['fee_pct', 'Fee layanan platform (%)']].map(([k, t]) => (
             <div key={k} className="field"><label>{t}</label><div style={{ display: 'flex', gap: 8 }}>
               <input className="input" type="number" min="0" value={cfg[k] ?? ''} onChange={(e) => setCfg({ ...cfg, [k]: e.target.value })} />
               <button className="btn sm" onClick={async () => { const { error } = await supabase.rpc('sj_admin_set_setting', { p_key: k, p_value: Number(cfg[k]) }); flash(error ? error.message : 'Tersimpan') }}>Simpan</button></div></div>))}
-          <p className="muted" style={{ fontSize: 13 }}>Biaya kurir = tarif dasar + tarif per km × jarak (dibulatkan ke atas).</p>
+          <h3 style={{ margin: '18px 0 8px' }}>Tarif kurir (simulasi)</h3>
+          {cour.map((c, i) => <div key={c.code} className="kv" style={{ alignItems: 'center', flexWrap: 'wrap' }}><b style={{ minWidth: 130 }}>{c.name}</b>
+            <input className="input" style={{ width: 90, height: 38 }} type="number" value={c.base} onChange={(e) => setCour(cour.map((x, k) => (k === i ? { ...x, base: e.target.value } : x)))} />
+            <input className="input" style={{ width: 80, height: 38 }} type="number" value={c.per_km} onChange={(e) => setCour(cour.map((x, k) => (k === i ? { ...x, per_km: e.target.value } : x)))} />
+            <button className={'toggle' + (c.active ? ' on' : '')} aria-label="Aktif" onClick={() => setCour(cour.map((x, k) => (k === i ? { ...x, active: !x.active } : x)))} />
+            <button className="btn sm" onClick={async () => { const { error } = await supabase.rpc('sj_admin_set_courier', { p_code: c.code, p_base: Number(c.base), p_per_km: Number(c.per_km), p_active: c.active }); flash(error ? error.message : 'Tersimpan') }}>Simpan</button></div>)}
+          <p className="muted" style={{ fontSize: 13 }}>Kolom: tarif dasar (Rp), tarif per km (Rp). Ongkir = dasar + per km × jarak (dibulatkan ke atas).</p>
         </div>)}
 
       {tab === 'konten' && <KontenAdmin flash={flash} />}

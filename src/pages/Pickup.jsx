@@ -65,30 +65,41 @@ export function KonfirmasiPickup() {
   )
 }
 
-const STEPS = [['dijadwalkan', 'Pickup dijadwalkan'], ['ditugaskan', 'Kurir ditugaskan'], ['menuju', 'Kurir menuju lokasi'], ['selesai', 'Pickup selesai']]
 export function DetailPickup() {
   const { id } = useParams()
   const nav = useNavigate()
   const [p, setP] = useState(null)
-  useEffect(() => { supabase.from('sj_pickups').select('*, sj_requests(sj_listings(title))').eq('id', id).maybeSingle().then(({ data }) => setP(data || false)) }, [id])
+  const load = () => supabase.from('sj_pickups').select('*, sj_requests(sj_listings(title))').eq('id', id).maybeSingle().then(({ data }) => setP(data || false))
+  useEffect(() => { load() }, [id])
+  useEffect(() => {
+    if (!p || p.courier_code == null || p.status === 'selesai') return
+    const t = setInterval(async () => { try { const s = await rpc('sj_pickup_tick', { p_id: Number(id) }); if (s !== p.status) load() } catch { /* abaikan */ } }, 8000)
+    rpc('sj_pickup_tick', { p_id: Number(id) }).then((s) => s !== p.status && load()).catch(() => {})
+    return () => clearInterval(t)
+  }, [p?.status, p?.courier_code, id])
   if (p === null) return <Spinner />
-  if (p === false) return <SuccessCard icon={Truck} title="Pickup tidak ditemukan" text=""><Link className="btn" to="/app/permintaan">Kembali</Link></SuccessCard>
-  const idx = STEPS.findIndex(([k]) => k === p.status)
+  if (p === false) return <SuccessCard icon={Truck} title="Pengiriman tidak ditemukan" text=""><Link className="btn" to="/app/permintaan">Kembali</Link></SuccessCard>
+  const auto = !!p.courier_code
+  const ev = p.events || []
   return (
     <>
-      <Topbar title="Detail Pickup" sub={p.sj_requests?.sj_listings?.title} />
+      <Topbar title={auto ? 'Lacak Pengiriman' : 'Detail Pickup'} sub={p.sj_requests?.sj_listings?.title} />
       <div className="grid g2">
         <div className="card" style={{ padding: 22 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}><b>Kode Pickup</b><span className="tag">{p.code}</span></div>
-          <div className="kv"><span className="muted">Jadwal</span><b>{fmtDate(p.pickup_date, { weekday: 'short', day: 'numeric', month: 'short' })} · {p.slot}</b></div>
-          <div className="kv"><span className="muted">Alamat</span><b style={{ textAlign: 'right' }}>{p.address}</b></div>
-          <div className="kv"><span className="muted">Kurir</span><b>{p.courier_name || 'Belum ditugaskan'}</b></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}><b>{auto ? 'No. Resi' : 'Kode Pickup'}</b><span className="tag">{p.code}</span></div>
+          <div className="kv"><span className="muted">Status</span><b>{{ dijadwalkan: 'Dijadwalkan', ditugaskan: 'Kurir ditugaskan', menuju: 'Dalam perjalanan', selesai: 'Terkirim' }[p.status]}</b></div>
+          {!auto && <div className="kv"><span className="muted">Jadwal</span><b>{fmtDate(p.pickup_date, { weekday: 'short', day: 'numeric', month: 'short' })} · {p.slot}</b></div>}
+          {auto && p.eta && <div className="kv"><span className="muted">Estimasi</span><b>{p.eta}</b></div>}
+          <div className="kv"><span className="muted">Alamat tujuan</span><b style={{ textAlign: 'right' }}>{p.address}</b></div>
+          <div className="kv"><span className="muted">Kurir</span><b style={{ textAlign: 'right' }}>{p.courier_name || 'Belum ditugaskan'}</b></div>
           {p.courier_plate && <div className="kv"><span className="muted">Plat</span><b>{p.courier_plate}</b></div>}
-          {p.status !== 'selesai' && <button className="btn sec block" style={{ marginTop: 14 }} onClick={() => nav('/app/pickup/jadwal/' + p.request_id)}>Ubah Jadwal</button>}
+          {!auto && p.status !== 'selesai' && <button className="btn sec block" style={{ marginTop: 14 }} onClick={() => nav('/app/pickup/jadwal/' + p.request_id)}>Ubah Jadwal</button>}
+          {auto && p.status !== 'selesai' && <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>Pelacakan simulasi: status maju otomatis dalam beberapa menit.</p>}
+          {auto && p.status === 'selesai' && <Link className="btn block" style={{ marginTop: 14 }} to="/app/pembayaran">Konfirmasi Pesanan Diterima</Link>}
         </div>
         <div className="card" style={{ padding: 22 }}>
-          <b style={{ display: 'block', marginBottom: 14 }}>Status Pickup</b>
-          <div className="tl">{STEPS.map(([k, t], i) => <div key={k} className={i <= idx ? '' : 'off'}><b style={{ fontSize: 14 }}>{t}</b></div>)}</div>
+          <b style={{ display: 'block', marginBottom: 14 }}>Riwayat Status</b>
+          <div className="tl">{[...ev].reverse().map((e, i) => <div key={i} className={i === 0 ? '' : ''}><b style={{ fontSize: 14 }}>{e.label}</b><div className="muted" style={{ fontSize: 12 }}>{fmtDate(e.at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div></div>)}</div>
         </div>
       </div>
     </>

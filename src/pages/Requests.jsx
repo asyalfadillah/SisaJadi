@@ -54,7 +54,7 @@ export default function Requests() {
               <span className="tag">{r.status}</span>
               {tab === 'keluar' && r.status === 'diterima' && (pay[r.id] ? <Link className="btn sm" to={'/app/pembayaran/' + pay[r.id].id}>Lihat Pembayaran</Link> : <Link className="btn sm" to={'/app/bayar/' + r.id}>Bayar</Link>)}
               {tab === 'masuk' && pay[r.id] && <span className="tag">Dibayar</span>}
-              {r.status === 'diterima' && r.method === 'Kurir' && (pk[r.id] ? <Link className="btn sm sec" to={'/app/pickup/' + pk[r.id].id}>Detail Pickup</Link> : <Link className="btn sm sec" to={'/app/pickup/jadwal/' + r.id}>Jadwalkan Pickup</Link>)}
+              {r.status === 'diterima' && r.method === 'Kurir' && (pk[r.id] && <Link className="btn sm sec" to={'/app/pickup/' + pk[r.id].id}>Lacak Pengiriman</Link>)}
               <button className="btn sm sec" onClick={() => chat(r.sj_listings?.id)}>Chat</button>
               {tab === 'masuk' && r.status === 'menunggu' && <><button className="btn sm" onClick={() => respond(r.id, true)}>Terima</button><button className="btn sm danger" onClick={() => respond(r.id, false)}>Tolak</button></>}
             </div>

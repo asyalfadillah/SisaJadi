@@ -66,18 +66,23 @@ export function KonfirmasiRequest() {
   const { pos, ask, err } = useGeo(false)
   const [method, setMethod] = useState('Ambil sendiri')
   const [address, setAddress] = useState(profile?.address || '')
-  const [cfg, setCfg] = useState({ courier_base: 8000, courier_per_km: 2500, fee_pct: 5 })
+  const [cfg, setCfg] = useState({ fee_pct: 5 })
+  const [couriers, setCouriers] = useState([])
+  const [cc, setCc] = useState('gosend')
   const [ok, setOk] = useState(false)
   const [busy, setBusy] = useState(false)
+  useEffect(() => { supabase.from('sj_couriers').select('*').eq('active', true).order('sort').then(({ data }) => { setCouriers(data || []); if (data?.[0]) setCc(data[0].code) }) }, [])
   useEffect(() => { supabase.from('sj_settings').select('*').then(({ data }) => data && setCfg(Object.fromEntries(data.map((x) => [x.key, Number(x.value)])))) }, [])
   if (!state) return <Navigate to={'/app/sisa/' + id + '/request'} replace />
   if (l === undefined) return <Spinner />
   if (!l) return <Navigate to="/app/jelajahi" replace />
   const total = totalOf(l, state.qty, state.type)
+  const sel = couriers.find((c) => c.code === cc) || couriers[0]
   const kurir = method === 'Kurir'
   const km = kurir && pos ? dist(pos, { lat: l.lat, lng: l.lng }) : null
   const kmUsed = Math.min(100, km == null ? 10 : km)
-  const courier = kurir ? cfg.courier_base + cfg.courier_per_km * Math.ceil(kmUsed) : 0
+  const priceOf = (c) => c.base + c.per_km * Math.ceil(kmUsed)
+  const courier = kurir && sel ? priceOf(sel) : 0
   const fee = Math.round((total * cfg.fee_pct) / 100)
   const grand = total + courier
   const needAddr = kurir && !address.trim()
@@ -85,7 +90,7 @@ export function KonfirmasiRequest() {
     setBusy(true)
     const { data, error } = await supabase.from('sj_requests').insert({
       listing_id: l.id, requester_id: user.id, message: state.note || null, qty: state.qty, req_type: state.type,
-      method, address: kurir ? address.trim() : (l.address || null), total, offer_item: state.offer_item || null, offer_qty: state.offer_qty || null,
+      method, courier_code: kurir ? (sel?.code || 'sisajadi') : null, address: kurir ? address.trim() : (l.address || null), total, offer_item: state.offer_item || null, offer_qty: state.offer_qty || null,
       dest_lat: kurir && pos ? pos.lat : null, dest_lng: kurir && pos ? pos.lng : null,
     }).select('id').single()
     setBusy(false)
@@ -114,10 +119,14 @@ export function KonfirmasiRequest() {
           </div>
         ) : <div className="muted" style={{ fontSize: 13, margin: '8px 0' }}>Kamu mengambil sendiri ke lokasi penjual. Tidak ada ongkir.</div>}
 
+        {kurir && <div className="field"><label>Pilih kurir</label>
+          <div style={{ display: 'grid', gap: 8 }}>{couriers.map((c) => (
+            <button key={c.code} type="button" className={'sel-chip' + (cc === c.code ? ' on' : '')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left', borderRadius: 14, padding: '10px 14px' }} onClick={() => setCc(c.code)}>
+              <span><b>{c.name}</b><span className="muted" style={{ display: 'block', fontSize: 12 }}>{c.kind} · estimasi {c.eta}</span></span><b>{money(priceOf(c))}</b></button>))}</div></div>}
         <div className="card" style={{ padding: 16, background: 'var(--mint)', boxShadow: 'none', margin: '14px 0' }}>
           <b>Rincian Biaya {kurir ? '(estimasi)' : ''}</b>
           <div className="kv" style={{ borderTop: 0 }}><span>Harga barang</span><b>{state.type === 'Jual' ? money(total) : state.type}</b></div>
-          {kurir && <div className="kv"><span>Biaya kurir ({km == null ? '≈10 km, lokasi belum diketahui' : kmUsed.toFixed(1).replace('.', ',') + ' km'})</span><b>{money(courier)}</b></div>}
+          {kurir && <div className="kv"><span>Ongkir {sel?.name} ({km == null ? '≈10 km, lokasi belum diketahui' : kmUsed.toFixed(1).replace('.', ',') + ' km'})</span><b>{money(courier)}</b></div>}
           <div className="kv"><span>Biaya layanan platform ({cfg.fee_pct}%)</span><b>{money(fee)}</b></div>
           <div className="muted" style={{ fontSize: 12 }}>Biaya layanan dipotong dari pendapatan penyedia, tidak menambah tagihanmu.</div>
           <div className="kv"><b>Total yang kamu bayar</b><b style={{ color: 'var(--green)', fontSize: 18 }}>{money(grand)}</b></div>
