@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase, timeAgo } from '../supabase'
+import { supabase, timeAgo, rpc, toast } from '../supabase'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import Topbar from '../components/Topbar'
 
@@ -9,6 +10,9 @@ export default function Requests() {
   const [tab, setTab] = useState('masuk')
   const [rows, setRows] = useState({ masuk: null, keluar: null, listing: null })
   const [msg, setMsg] = useState('')
+  const [pk, setPk] = useState({})
+  const nav = useNavigate()
+  const chat = async (lid) => { try { nav('/app/chat/' + (await rpc('sj_open_thread', { p_listing: lid }))) } catch (e) { toast(e.message) } }
 
   const load = useCallback(async () => {
     const [a, b, c] = await Promise.all([
@@ -16,6 +20,7 @@ export default function Requests() {
       supabase.from('sj_requests').select('*, sj_listings(id,title)').eq('requester_id', user.id).order('created_at', { ascending: false }),
       supabase.from('sj_listings').select('*').eq('owner_id', user.id).order('created_at', { ascending: false }),
     ])
+    supabase.from('sj_pickups').select('id,request_id,status').then(({ data }) => setPk(Object.fromEntries((data || []).map((p) => [p.request_id, p]))))
     setRows({ masuk: a.data || [], keluar: b.data || [], listing: c.data || [] })
   }, [user.id])
   useEffect(() => { load() }, [load])
@@ -44,6 +49,8 @@ export default function Requests() {
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <span className="tag">{r.status}</span>
+              {r.status === 'diterima' && r.method === 'Kurir' && (pk[r.id] ? <Link className="btn sm sec" to={'/app/pickup/' + pk[r.id].id}>Detail Pickup</Link> : <Link className="btn sm sec" to={'/app/pickup/jadwal/' + r.id}>Jadwalkan Pickup</Link>)}
+              <button className="btn sm sec" onClick={() => chat(r.sj_listings?.id)}>Chat</button>
               {tab === 'masuk' && r.status === 'menunggu' && <><button className="btn sm" onClick={() => respond(r.id, true)}>Terima</button><button className="btn sm danger" onClick={() => respond(r.id, false)}>Tolak</button></>}
             </div>
           </div>))}

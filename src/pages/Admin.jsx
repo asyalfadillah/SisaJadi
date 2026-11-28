@@ -11,6 +11,8 @@ export default function Admin() {
   const [sel, setSel] = useState(null)
   const [detail, setDetail] = useState(null)
   const [msg, setMsg] = useState('')
+  const [ex, setEx] = useState({ pickups: [], support: [] })
+  const [bc, setBc] = useState({ title: '', body: '' })
   const [rw, setRw] = useState({ title: '', description: '', cost: '' })
 
   const load = useCallback(async () => {
@@ -20,6 +22,8 @@ export default function Admin() {
       supabase.from('sj_requests').select('*, sj_listings(title)').order('created_at', { ascending: false }),
       supabase.from('sj_rewards').select('*').order('cost'),
     ])
+    const [pk, sp] = await Promise.all([supabase.from('sj_pickups').select('*').order('created_at', { ascending: false }), supabase.from('sj_support_messages').select('*').order('created_at', { ascending: false })])
+    setEx({ pickups: pk.data || [], support: sp.data || [] })
     setD({ users: u.data || [], listings: l.data || [], requests: r.data || [], rewards: w.data || [] })
   }, [])
   useEffect(() => { if (isAdmin) load() }, [isAdmin, load])
@@ -54,8 +58,8 @@ export default function Admin() {
       <Topbar title="Admin" sub={'Masuk sebagai ' + (profile?.email || user.email)} back={false} />
       <div className="grid g4" style={{ marginBottom: 18 }}>{stats.map(([t, n]) => <div key={t} className="card stat"><b>{n}</b><span>{t}</span></div>)}</div>
       {msg && <div className="ok">{msg}</div>}
-      <div className="tabs" style={{ maxWidth: 560 }}>
-        {[['akun', 'Akun'], ['listing', 'Sisa'], ['request', 'Request'], ['reward', 'Reward']].map(([k, t]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
+      <div className="tabs" style={{ maxWidth: 760 }}>
+        {[['akun', 'Akun'], ['listing', 'Sisa'], ['request', 'Request'], ['reward', 'Reward'], ['pickup', 'Pickup'], ['bantuan', 'Bantuan'], ['siaran', 'Siaran']].map(([k, t]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === 'akun' && (
@@ -107,6 +111,31 @@ export default function Admin() {
           <div>{d.rewards.map((r) => <div key={r.id} className="card list-item"><div><b>{r.title}</b><div className="muted" style={{ fontSize: 13 }}>{r.cost} poin</div></div>
             <button className={'btn sm' + (r.active ? ' sec' : '')} onClick={() => togRw(r)}>{r.active ? 'Nonaktifkan' : 'Aktifkan'}</button></div>)}</div>
         </div>)}
+
+      {tab === 'pickup' && (ex.pickups.length === 0 ? <div className="card empty">Belum ada pickup.</div> : ex.pickups.map((p) => <PickupRow key={p.id} p={p} onDone={(t) => { flash(t); load() }} />))}
+
+      {tab === 'bantuan' && (ex.support.length === 0 ? <div className="card empty">Belum ada pesan bantuan.</div> : ex.support.map((m) => (
+        <div key={m.id} className="card list-item"><div><b>{m.category}</b> <span className="muted" style={{ fontSize: 12 }}>· {d.users.find((u) => u.id === m.user_id)?.email || m.user_id.slice(0, 8)} · {timeAgo(m.created_at)}</span><div style={{ fontSize: 14 }}>{m.body}</div></div><span className="tag">{m.status}</span></div>)))}
+
+      {tab === 'siaran' && (
+        <form className="card" style={{ padding: 20, maxWidth: 520 }} onSubmit={async (e) => { e.preventDefault(); const { data, error } = await supabase.rpc('sj_admin_broadcast', { p_title: bc.title, p_body: bc.body }); flash(error ? error.message : 'Terkirim ke ' + data + ' akun'); if (!error) setBc({ title: '', body: '' }) }}>
+          <h3 style={{ marginBottom: 12 }}>Kirim notifikasi ke semua akun</h3>
+          <div className="field"><label>Judul</label><input className="input" required value={bc.title} onChange={(e) => setBc({ ...bc, title: e.target.value })} /></div>
+          <div className="field"><label>Isi</label><textarea className="input" rows={3} required value={bc.body} onChange={(e) => setBc({ ...bc, body: e.target.value })} /></div>
+          <button className="btn block">Kirim</button></form>)}
     </>
+  )
+}
+
+function PickupRow({ p, onDone }) {
+  const [st, setSt] = useState(p.status), [c, setC] = useState(p.courier_name || ''), [pl, setPl] = useState(p.courier_plate || '')
+  const save = async () => { const { error } = await supabase.rpc('sj_admin_pickup', { p_id: p.id, p_status: st, p_courier: c || null, p_plate: pl || null }); onDone(error ? error.message : 'Pickup diperbarui') }
+  return (
+    <div className="card list-item"><div><b>{p.code}</b><div className="muted" style={{ fontSize: 13 }}>{p.pickup_date} · {p.slot} · {p.address}</div></div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <select className="input" style={{ height: 40, width: 130 }} value={st} onChange={(e) => setSt(e.target.value)}>{['dijadwalkan', 'ditugaskan', 'menuju', 'selesai'].map((x) => <option key={x}>{x}</option>)}</select>
+        <input className="input" style={{ height: 40, width: 130 }} placeholder="Kurir" value={c} onChange={(e) => setC(e.target.value)} />
+        <input className="input" style={{ height: 40, width: 100 }} placeholder="Plat" value={pl} onChange={(e) => setPl(e.target.value)} />
+        <button className="btn sm" onClick={save}>Simpan</button></div></div>
   )
 }

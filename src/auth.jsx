@@ -41,3 +41,8 @@ export function AuthProvider({ children }) {
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
+
+export function useProfileCity() {
+  const { profile } = useAuth()
+  return { city: profile?.address || '' }
+}

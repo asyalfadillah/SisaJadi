@@ -15,7 +15,7 @@ export default function Auth() {
   const nav = useNavigate()
   const { user, loading } = useAuth()
   const [mode, setMode] = useState(sp.get('daftar') ? 'daftar' : 'masuk')
-  const [f, setF] = useState({ name: '', business: '', email: '', password: '' })
+  const [f, setF] = useState({ name: '', business: '', phone: '', email: '', password: '' })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [info, setInfo] = useState('')
@@ -44,7 +44,7 @@ export default function Auth() {
       } else {
         const { data, error } = await supabase.auth.signUp({
           email: f.email, password: f.password,
-          options: { data: { full_name: f.name, business_name: f.business }, emailRedirectTo: window.location.origin + '/app' },
+          options: { data: { full_name: f.name, business_name: f.business, phone: f.phone }, emailRedirectTo: window.location.origin + '/app' },
         })
         if (error) throw error
         if (data.session) nav('/app', { replace: true })
@@ -79,6 +79,7 @@ export default function Auth() {
               {mode === 'daftar' && (
                 <motion.div key="reg" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
                   <div className="field"><label>Nama lengkap</label><input className="input" required value={f.name} onChange={set('name')} autoComplete="name" /></div>
+                  <div className="field"><label>Nomor telepon</label><input className="input" inputMode="tel" value={f.phone} onChange={set('phone')} /></div>
                   <div className="field"><label>Nama usaha (opsional)</label><input className="input" value={f.business} onChange={set('business')} /></div>
                 </motion.div>
               )}

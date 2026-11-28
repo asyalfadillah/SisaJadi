@@ -1,17 +1,22 @@
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
-import { Home, Compass, PlusCircle, Heart, Award, Inbox, User, ShieldCheck, Lightbulb, LogOut } from 'lucide-react'
+import { Home, Compass, PlusCircle, Heart, Award, Inbox, User, ShieldCheck, Lightbulb, LogOut, MessageCircle, Target, Map, Users, Leaf } from 'lucide-react'
+import { useState } from 'react'
+import { Splash } from './More'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Bg, Logo, Spinner } from '../components/ui'
+import { Bg, Logo, Spinner, Toaster } from '../components/ui'
 import { useAuth } from '../auth'
 
 export default function AppLayout() {
   const { user, profile, loading, isAdmin, signOut } = useAuth()
   const loc = useLocation()
+  const [splash, setSplash] = useState(() => { try { return !sessionStorage.getItem('sj-splash') } catch { return false } })
   if (loading) return <><Bg /><Spinner /></>
   if (!user) return <Navigate to="/masuk" replace state={{ from: loc.pathname }} />
+  if (profile && profile.onboarded === false) return <Navigate to="/onboarding" replace />
   const items = [
     ['/app', 'Beranda', Home, true], ['/app/jelajahi', 'Jelajahi', Compass], ['/app/jual', 'Jual Sisa', PlusCircle],
-    ['/app/favorit', 'Favorit', Heart], ['/app/permintaan', 'Permintaan', Inbox], ['/app/eco-point', 'Eco Point', Award],
+    ['/app/peta', 'Peta', Map], ['/app/favorit', 'Favorit', Heart], ['/app/permintaan', 'Permintaan', Inbox], ['/app/chat', 'Pesan', MessageCircle],
+    ['/app/misi', 'Misi', Target], ['/app/komunitas', 'Komunitas', Users], ['/app/eco-point', 'Eco Point', Award], ['/app/dampak', 'Dampak', Leaf],
     ['/app/ide', 'Ide Sisa', Lightbulb], ['/app/profil', 'Profil', User],
   ]
   if (isAdmin) items.push(['/app/admin', 'Admin', ShieldCheck])
@@ -19,6 +24,8 @@ export default function AppLayout() {
   return (
     <>
       <Bg />
+      <Toaster />
+      {splash && <Splash onDone={() => { try { sessionStorage.setItem('sj-splash', '1') } catch { /* abaikan */ } setSplash(false) }} />}
       <div className="app">
         <aside className="side">
           <div className="logo" style={{ padding: '0 10px 18px' }}><Logo size={20} /></div>

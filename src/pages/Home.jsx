@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, Upload, Repeat, Inbox, Award, Lightbulb, Mic } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { supabase, CATEGORIES } from '../supabase'
+import { supabase, CATEGORIES, num } from '../supabase'
 import { useAuth } from '../auth'
 import { Count, CatIcon } from '../components/ui'
 import ListingCard from '../components/ListingCard'
@@ -45,9 +45,14 @@ export default function Home() {
         <span className="pill" style={{ background: 'rgba(255,255,255,.22)', color: '#fff', boxShadow: 'none' }}>Dampak Bersama</span>
         <b><Count to={Math.round(stats.kg)} /> kg</b>
         <div style={{ opacity: .9 }}>sisa produksi tercatat di SisaJadi</div>
+        <div style={{ margin: '12px 0 4px' }}><div style={{ height: 8, borderRadius: 8, background: 'rgba(255,255,255,.3)' }}><div style={{ width: Math.min(100, Math.round((stats.kg / (stats.target || 3000)) * 100)) + '%', height: '100%', borderRadius: 8, background: '#fff' }} /></div><div style={{ fontSize: 13, marginTop: 4 }}>Target bulanan {Math.min(100, Math.round((stats.kg / (stats.target || 3000)) * 100))}%</div></div>
         <div className="pills"><span>{stats.umkm} UMKM</span><span>{stats.listings} sisa aktif</span><span>{stats.selesai} transaksi</span></div>
       </motion.div>
-      <div className="sect"><h2>Kategori Sisa</h2><Link to="/app/jelajahi">Lihat semua ›</Link></div>
+      <div className="grid g2" style={{ marginTop: 14 }}>
+        <Link to="/app/misi" className="card" style={{ padding: 16 }}><b>🎯 Misi mingguan</b><div className="muted" style={{ fontSize: 13 }}>Selesaikan misi, klaim Eco Point</div></Link>
+        <Link to="/app/ide/hasil" className="card" style={{ padding: 16 }}><b>💡 Daftar Ide</b><div className="muted" style={{ fontSize: 13 }}>Ide pemanfaatan sisa produksi</div></Link>
+      </div>
+      <div className="sect"><h2>Kategori Sisa</h2><Link to="/app/kategori">Lihat semua ›</Link></div>
       <div className="rowflex">
         {['Semua', ...CATEGORIES].map((c) => <button key={c} className={'chip' + (cat === c ? ' on' : '')} onClick={() => setCat(c)}>{c !== 'Semua' && <CatIcon cat={c} size={16} />}{c}</button>)}
       </div>
