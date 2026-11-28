@@ -12,6 +12,8 @@ export default function Admin() {
   const [detail, setDetail] = useState(null)
   const [msg, setMsg] = useState('')
   const [ex, setEx] = useState({ pickups: [], support: [] })
+  const [pays, setPays] = useState([])
+  const [cfg, setCfg] = useState({})
   const [bc, setBc] = useState({ title: '', body: '' })
   const [rw, setRw] = useState({ title: '', description: '', cost: '' })
 
@@ -23,6 +25,8 @@ export default function Admin() {
       supabase.from('sj_rewards').select('*').order('cost'),
     ])
     const [pk, sp] = await Promise.all([supabase.from('sj_pickups').select('*').order('created_at', { ascending: false }), supabase.from('sj_support_messages').select('*').order('created_at', { ascending: false })])
+    const [py, st] = await Promise.all([supabase.from('sj_payments').select('*, sj_requests(sj_listings(title))').order('paid_at', { ascending: false }), supabase.from('sj_settings').select('*')])
+    setPays(py.data || []); setCfg(Object.fromEntries((st.data || []).map((x) => [x.key, Number(x.value)])))
     setEx({ pickups: pk.data || [], support: sp.data || [] })
     setD({ users: u.data || [], listings: l.data || [], requests: r.data || [], rewards: w.data || [] })
   }, [])
@@ -58,8 +62,8 @@ export default function Admin() {
       <Topbar title="Admin" sub={'Masuk sebagai ' + (profile?.email || user.email)} back={false} />
       <div className="grid g4" style={{ marginBottom: 18 }}>{stats.map(([t, n]) => <div key={t} className="card stat"><b>{n}</b><span>{t}</span></div>)}</div>
       {msg && <div className="ok">{msg}</div>}
-      <div className="tabs" style={{ maxWidth: 760 }}>
-        {[['akun', 'Akun'], ['listing', 'Sisa'], ['request', 'Request'], ['reward', 'Reward'], ['pickup', 'Pickup'], ['bantuan', 'Bantuan'], ['siaran', 'Siaran']].map(([k, t]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
+      <div className="tabs" style={{ maxWidth: 960 }}>
+        {[['akun', 'Akun'], ['listing', 'Sisa'], ['request', 'Request'], ['reward', 'Reward'], ['pickup', 'Pickup'], ['bantuan', 'Bantuan'], ['pembayaran', 'Pembayaran'], ['tarif', 'Tarif & Fee'], ['siaran', 'Siaran']].map(([k, t]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
       </div>
 
       {tab === 'akun' && (
@@ -116,6 +120,27 @@ export default function Admin() {
 
       {tab === 'bantuan' && (ex.support.length === 0 ? <div className="card empty">Belum ada pesan bantuan.</div> : ex.support.map((m) => (
         <div key={m.id} className="card list-item"><div><b>{m.category}</b> <span className="muted" style={{ fontSize: 12 }}>· {d.users.find((u) => u.id === m.user_id)?.email || m.user_id.slice(0, 8)} · {timeAgo(m.created_at)}</span><div style={{ fontSize: 14 }}>{m.body}</div></div><span className="tag">{m.status}</span></div>)))}
+
+      {tab === 'pembayaran' && (<>
+        <div className="grid g3" style={{ marginBottom: 14 }}>
+          {[['Total transaksi', pays.filter((p) => p.status !== 'dibatalkan').reduce((a, p) => a + Number(p.total), 0)], ['Dana ditahan', pays.filter((p) => p.status === 'dibayar').reduce((a, p) => a + Number(p.item_total) - Number(p.platform_fee), 0)], ['Pendapatan platform', pays.filter((p) => p.status === 'dicairkan').reduce((a, p) => a + Number(p.platform_fee), 0)]].map(([t, n]) => <div key={t} className="card stat"><b style={{ fontSize: 22 }}>{rupiah(n) === 'Gratis' ? 'Rp 0' : rupiah(n)}</b><span>{t}</span></div>)}
+        </div>
+        {pays.length === 0 ? <div className="card empty">Belum ada pembayaran.</div> : pays.map((p) => (
+          <div key={p.id} className="card list-item"><div><b>{p.code}</b> <span className="tag">{p.status}</span><div className="muted" style={{ fontSize: 13 }}>{p.sj_requests?.sj_listings?.title} · {p.method} · barang {rupiah(p.item_total)} + kurir {rupiah(p.courier_fee)} · fee {rupiah(p.platform_fee)}</div></div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><b>{rupiah(p.total)}</b>
+              {p.status === 'dibayar' && <><button className="btn sm" onClick={async () => { const { error } = await supabase.rpc('sj_release_payment', { p_id: p.id }); flash(error ? error.message : 'Dana dicairkan'); load() }}>Cairkan</button>
+                <button className="btn sm danger" onClick={async () => { if (!confirm('Batalkan dan kembalikan dana?')) return; const { error } = await supabase.rpc('sj_admin_refund', { p_id: p.id }); flash(error ? error.message : 'Dibatalkan'); load() }}>Refund</button></>}</div></div>))}
+      </>)}
+
+      {tab === 'tarif' && (
+        <div className="card" style={{ padding: 20, maxWidth: 480 }}>
+          <h3 style={{ marginBottom: 12 }}>Tarif kurir & fee layanan</h3>
+          {[['courier_base', 'Tarif dasar kurir (Rp)'], ['courier_per_km', 'Tarif per km (Rp)'], ['fee_pct', 'Fee layanan platform (%)']].map(([k, t]) => (
+            <div key={k} className="field"><label>{t}</label><div style={{ display: 'flex', gap: 8 }}>
+              <input className="input" type="number" min="0" value={cfg[k] ?? ''} onChange={(e) => setCfg({ ...cfg, [k]: e.target.value })} />
+              <button className="btn sm" onClick={async () => { const { error } = await supabase.rpc('sj_admin_set_setting', { p_key: k, p_value: Number(cfg[k]) }); flash(error ? error.message : 'Tersimpan') }}>Simpan</button></div></div>))}
+          <p className="muted" style={{ fontSize: 13 }}>Biaya kurir = tarif dasar + tarif per km × jarak (dibulatkan ke atas).</p>
+        </div>)}
 
       {tab === 'siaran' && (
         <form className="card" style={{ padding: 20, maxWidth: 520 }} onSubmit={async (e) => { e.preventDefault(); const { data, error } = await supabase.rpc('sj_admin_broadcast', { p_title: bc.title, p_body: bc.body }); flash(error ? error.message : 'Terkirim ke ' + data + ' akun'); if (!error) setBc({ title: '', body: '' }) }}>

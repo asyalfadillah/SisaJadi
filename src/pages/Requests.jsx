@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, timeAgo, rpc, toast } from '../supabase'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth'
 import Topbar from '../components/Topbar'
 
 export default function Requests() {
   const { user } = useAuth()
-  const [tab, setTab] = useState('masuk')
+  const [sp] = useSearchParams()
+  const [tab, setTab] = useState(() => { if (sp.get('tab')) return sp.get('tab'); try { return localStorage.getItem('sj-mode') === 'buyer' ? 'keluar' : 'masuk' } catch { return 'masuk' } })
   const [rows, setRows] = useState({ masuk: null, keluar: null, listing: null })
   const [msg, setMsg] = useState('')
   const [pk, setPk] = useState({})
+  const [pay, setPay] = useState({})
   const nav = useNavigate()
   const chat = async (lid) => { try { nav('/app/chat/' + (await rpc('sj_open_thread', { p_listing: lid }))) } catch (e) { toast(e.message) } }
 
@@ -21,6 +23,7 @@ export default function Requests() {
       supabase.from('sj_listings').select('*').eq('owner_id', user.id).order('created_at', { ascending: false }),
     ])
     supabase.from('sj_pickups').select('id,request_id,status').then(({ data }) => setPk(Object.fromEntries((data || []).map((p) => [p.request_id, p]))))
+    supabase.from('sj_payments').select('id,request_id,status').then(({ data }) => setPay(Object.fromEntries((data || []).map((p) => [p.request_id, p]))))
     setRows({ masuk: a.data || [], keluar: b.data || [], listing: c.data || [] })
   }, [user.id])
   useEffect(() => { load() }, [load])
@@ -49,6 +52,8 @@ export default function Requests() {
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <span className="tag">{r.status}</span>
+              {tab === 'keluar' && r.status === 'diterima' && (pay[r.id] ? <Link className="btn sm" to={'/app/pembayaran/' + pay[r.id].id}>Lihat Pembayaran</Link> : <Link className="btn sm" to={'/app/bayar/' + r.id}>Bayar</Link>)}
+              {tab === 'masuk' && pay[r.id] && <span className="tag">Dibayar</span>}
               {r.status === 'diterima' && r.method === 'Kurir' && (pk[r.id] ? <Link className="btn sm sec" to={'/app/pickup/' + pk[r.id].id}>Detail Pickup</Link> : <Link className="btn sm sec" to={'/app/pickup/jadwal/' + r.id}>Jadwalkan Pickup</Link>)}
               <button className="btn sm sec" onClick={() => chat(r.sj_listings?.id)}>Chat</button>
               {tab === 'masuk' && r.status === 'menunggu' && <><button className="btn sm" onClick={() => respond(r.id, true)}>Terima</button><button className="btn sm danger" onClick={() => respond(r.id, false)}>Tolak</button></>}

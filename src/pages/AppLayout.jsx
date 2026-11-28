@@ -1,7 +1,8 @@
-import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
-import { Home, Compass, PlusCircle, Heart, Award, Inbox, User, ShieldCheck, Lightbulb, LogOut, MessageCircle, Target, Map, Users, Leaf } from 'lucide-react'
+import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Home, Compass, PlusCircle, Heart, Award, Inbox, User, ShieldCheck, Lightbulb, LogOut, MessageCircle, Target, Map, Users, Leaf, Wallet, CreditCard, Store, ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
 import { Splash } from './More'
+import { useMode, setMode } from '../mode'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bg, Logo, Spinner, Toaster } from '../components/ui'
 import { useAuth } from '../auth'
@@ -9,16 +10,22 @@ import { useAuth } from '../auth'
 export default function AppLayout() {
   const { user, profile, loading, isAdmin, signOut } = useAuth()
   const loc = useLocation()
+  const mode = useMode()
+  const go = useNavigate()
   const [splash, setSplash] = useState(() => { try { return !sessionStorage.getItem('sj-splash') } catch { return false } })
   if (loading) return <><Bg /><Spinner /></>
   if (!user) return <Navigate to="/masuk" replace state={{ from: loc.pathname }} />
   if (profile && profile.onboarded === false) return <Navigate to="/onboarding" replace />
-  const items = [
-    ['/app', 'Beranda', Home, true], ['/app/jelajahi', 'Jelajahi', Compass], ['/app/jual', 'Jual Sisa', PlusCircle],
-    ['/app/peta', 'Peta', Map], ['/app/favorit', 'Favorit', Heart], ['/app/permintaan', 'Permintaan', Inbox], ['/app/chat', 'Pesan', MessageCircle],
-    ['/app/misi', 'Misi', Target], ['/app/komunitas', 'Komunitas', Users], ['/app/eco-point', 'Eco Point', Award], ['/app/dampak', 'Dampak', Leaf],
-    ['/app/ide', 'Ide Sisa', Lightbulb], ['/app/profil', 'Profil', User],
+  const buyer = [
+    ['/app', 'Beranda', Home, true], ['/app/jelajahi', 'Jelajahi', Compass], ['/app/peta', 'Peta', Map], ['/app/favorit', 'Favorit', Heart],
+    ['/app/permintaan', 'Request Saya', Inbox], ['/app/pembayaran', 'Pembayaran', CreditCard], ['/app/chat', 'Pesan', MessageCircle],
+    ['/app/misi', 'Misi', Target], ['/app/komunitas', 'Komunitas', Users], ['/app/eco-point', 'Eco Point', Award], ['/app/dampak', 'Dampak', Leaf], ['/app/ide', 'Ide Sisa', Lightbulb], ['/app/profil', 'Profil', User],
   ]
+  const provider = [
+    ['/app/penyedia', 'Beranda Penyedia', Store, true], ['/app/jual', 'Jual Sisa', PlusCircle], ['/app/permintaan', 'Request Masuk', Inbox], ['/app/dompet', 'Dompet', Wallet],
+    ['/app/chat', 'Pesan', MessageCircle], ['/app/misi', 'Misi', Target], ['/app/dampak', 'Dampak', Leaf], ['/app/profil', 'Profil', User],
+  ]
+  const items = mode === 'provider' ? provider : buyer
   if (isAdmin) items.push(['/app/admin', 'Admin', ShieldCheck])
   const name = profile?.business_name || profile?.full_name || user.email
   return (
@@ -29,6 +36,10 @@ export default function AppLayout() {
       <div className="app">
         <aside className="side">
           <div className="logo" style={{ padding: '0 10px 18px' }}><Logo size={20} /></div>
+          <div className="tabs" style={{ margin: '0 0 12px' }}>
+            <button className={mode === 'buyer' ? 'on' : ''} onClick={() => { setMode('buyer'); go('/app') }}><ShoppingBag size={14} /> Pembeli</button>
+            <button className={mode === 'provider' ? 'on' : ''} onClick={() => { setMode('provider'); go('/app/penyedia') }}><Store size={14} /> Penyedia</button>
+          </div>
           {items.map(([to, t, I, end]) => (
             <NavLink key={to} to={to} end={end} className={({ isActive }) => 'it' + (isActive ? ' active' : '')}><I size={20} />{t}</NavLink>
           ))}
@@ -49,10 +60,10 @@ export default function AppLayout() {
           </AnimatePresence>
         </main>
         <nav className="bnav">
-          <NavLink to="/app" end className={({ isActive }) => (isActive ? 'active' : '')}><Home size={20} />Beranda</NavLink>
-          <NavLink to="/app/jelajahi" className={({ isActive }) => (isActive ? 'active' : '')}><Compass size={20} />Jelajahi</NavLink>
+          <NavLink to={mode === 'provider' ? '/app/penyedia' : '/app'} end className={({ isActive }) => (isActive ? 'active' : '')}><Home size={20} />Beranda</NavLink>
+          {mode === 'provider' ? <NavLink to="/app/dompet" className={({ isActive }) => (isActive ? 'active' : '')}><Wallet size={20} />Dompet</NavLink> : <NavLink to="/app/jelajahi" className={({ isActive }) => (isActive ? 'active' : '')}><Compass size={20} />Jelajahi</NavLink>}
           <NavLink to="/app/jual" className="plus" aria-label="Jual Sisa"><PlusCircle size={26} /></NavLink>
-          <NavLink to="/app/permintaan" className={({ isActive }) => (isActive ? 'active' : '')}><Inbox size={20} />Permintaan</NavLink>
+          <NavLink to="/app/permintaan" className={({ isActive }) => (isActive ? 'active' : '')}><Inbox size={20} />Request</NavLink>
           <NavLink to="/app/profil" className={({ isActive }) => (isActive ? 'active' : '')}><User size={20} />Profil</NavLink>
         </nav>
       </div>
